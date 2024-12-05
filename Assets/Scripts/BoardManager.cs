@@ -26,7 +26,7 @@ public class BoardManager : MonoBehaviour
 
     private int maxFilledTiles = 13;
 
-    private Tile tileObj;
+    private GameObject tileObj;
 
     private Sprite level;
 
@@ -44,11 +44,11 @@ public class BoardManager : MonoBehaviour
     {
         Debug.Log("BoardManager.Start");
         instance = this;
-        tileObj = Resources.Load<Tile>("Prefabs/Tile");
+        tileObj = Resources.Load<GameObject>("Prefabs/Tile");
         level = Resources.Load<Sprite>("Images/paris2");
         sprites = Resources.LoadAll<Sprite>("Images/level_1");
         imageMap = new Dictionary<string, Sprite>();
-        Debug.Log("tileObj: "+tileObj.ToString());
+        //Debug.Log("tileObj: "+tileObj.ToString());
         CreateImagePieces();
         CreateBoard();
         ScrambleBoard();
@@ -179,9 +179,9 @@ public class BoardManager : MonoBehaviour
 
     public Vector3 GetTilePos(int col, int row)
     {
-        Debug.Log("GetTilePos");
+        //Debug.Log("GetTilePos");
         float x = (float) col - 1;
-        float y = (float) 2.5f - row;
+        float y = (float) 2.0f - row;
         
         float z = -0.2f;
         Vector3 pos = new Vector3(x,y,z);
@@ -285,7 +285,7 @@ public class BoardManager : MonoBehaviour
             {
                 Tile tile = cols[j];
                 if(tile == null) continue;
-                
+
                 if(tile.CorrectPlace())
                 {
                     numCorrect++;
@@ -299,12 +299,13 @@ public class BoardManager : MonoBehaviour
 
         }
 
-        Debug.Log("Tiles correct:"+numCorrect);
-        Debug.Log("Tiles wrong:"+numFaulty);
+        //Debug.Log("Tiles correct:"+numCorrect);
+        //Debug.Log("Tiles wrong:"+numFaulty);
 
         if(numFaulty>0)
             return false;
         
+        Debug.Log("GAME ENDED");
         return true;
 
 
