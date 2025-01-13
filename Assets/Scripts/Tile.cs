@@ -2,10 +2,19 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
+using DG.Tweening;
 using Unity.VisualScripting;
 using UnityEngine;
 using Vector3 = UnityEngine.Vector3;
 
+
+
+public enum TileTypeT
+{
+    SMALL,
+    MEDIUM,
+    LARGE
+}
 
 public class Tile : MonoBehaviour
 {
@@ -23,6 +32,8 @@ public class Tile : MonoBehaviour
     private int correctColumn;
 
     private int correctRow;
+
+    private TileTypeT tileType;
     
     // Start is called before the first frame update
     void Start()
@@ -93,11 +104,12 @@ public class Tile : MonoBehaviour
         this.column = col;
         this.row = row;
 
-        Vector3 pos = BoardManager.instance.GetTilePos(this.column, this.row);
-        this.transform.position = pos; //Should do a nice animation and not just switch pos. Fixing later.
+        Vector3 pos = BoardManager.instance.GetTilePos(this.column, this.row, tileType);
+        //this.transform.position = pos; //Should do a nice animation and not just switch pos. Fixing later.
+        this.transform.DOMove(pos,0.3f);
     }
 
-    public void SetupTile(int col, int row)
+    public void SetupTile(int col, int row, TileTypeT type)
     {
         Debug.Log("Setting up Tile: "+col+":"+row);
         this.column = col;
@@ -105,6 +117,7 @@ public class Tile : MonoBehaviour
         this.correctColumn = col;
         this.correctRow = row;
         this.moving = false;
+        this.tileType = type;
     }
 
     public void SetupSprite(Sprite level)

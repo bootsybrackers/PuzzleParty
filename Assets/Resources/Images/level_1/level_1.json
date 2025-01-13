@@ -1,7 +1,9 @@
 {
     "name": "Level 1",
-    "tiles": "12",
+    "tiles": "15",
     "moves": "100",
-    "gaps": "2"
+    "gaps": "2",
+    "columns": "3",
+    "rows": "5"
 
 }

@@ -4,7 +4,9 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using Unity.VisualScripting;
+using Unity.VisualScripting.Dependencies.Sqlite;
 using UnityEngine;
+
 
 public enum MoveDirection
 {
@@ -26,6 +28,8 @@ public class BoardManager : MonoBehaviour
 
     private int maxFilledTiles = 13;
 
+    private int nextLevel;
+
     private GameObject tileObj;
 
     private Sprite level;
@@ -36,25 +40,67 @@ public class BoardManager : MonoBehaviour
 
     private Dictionary<string,Sprite> imageMap;
 
+    private TextAsset ta;
+
     private int totalMoves = 0;
+
+    private int movesLeft;
     
+    private LevelInfo levelInfo;
+
+    private TileTypeT tileType;
 
     // Start is called before the first frame update
     void Start()
     {
         Debug.Log("BoardManager.Start");
         instance = this;
-        tileObj = Resources.Load<GameObject>("Prefabs/Tile");
-        level = Resources.Load<Sprite>("Images/paris2");
-        sprites = Resources.LoadAll<Sprite>("Images/level_1");
+        SetUpLevelConfiguration();
+        SetUpBoard();
+        
+
+    }
+
+    private void SetUpLevelConfiguration()
+    {
+        //getLevelFromLocalStorage
+        int levelsBeaten = 0;
+
+        nextLevel = levelsBeaten+1;
+        ta = Resources.Load<TextAsset>("Images/level_"+nextLevel+"/level_"+nextLevel);
+        levelInfo = JsonUtility.FromJson<LevelInfo>(ta.text);
+        boardCols = levelInfo.columns;
+        boardRows = levelInfo.rows;
+        maxFilledTiles = levelInfo.tiles - levelInfo.gaps;
+        movesLeft = levelInfo.moves;
+        SetupTileType();
+    }
+
+    private void SetUpBoard()
+    {
+        sprites = Resources.LoadAll<Sprite>("Images/level_"+nextLevel+"/");
         imageMap = new Dictionary<string, Sprite>();
         //Debug.Log("tileObj: "+tileObj.ToString());
         CreateImagePieces();
         CreateBoard();
         ScrambleBoard();
-        
-
+        UpdateUI();
     }
+
+    private void SetupTileType()
+    {
+        if (levelInfo.columns == 3 && levelInfo.rows == 5)
+        {
+            tileObj = Resources.Load<GameObject>("Prefabs/Tile");
+            tileType = TileTypeT.MEDIUM;
+        }
+        else
+        {
+            tileObj = Resources.Load<GameObject>("Prefabs/TileLarge");
+            tileType = TileTypeT.LARGE;
+        }
+    }
+
 
     private void CreateImagePieces()
     {
@@ -82,7 +128,7 @@ public class BoardManager : MonoBehaviour
             for(int j=0;j<row.Length;j++)
             {
                
-                Tile tile = totalTiles < maxFilledTiles ? CreateTile(j,i) : null;;
+                Tile tile = totalTiles < maxFilledTiles ? CreateTile(j,i) : null;
                 Debug.Log("Create Tile for col:"+j+" and row:"+i);
                 row[j] = tile;
                 totalTiles++;
@@ -168,23 +214,35 @@ public class BoardManager : MonoBehaviour
     {
 
         var tile = Instantiate(tileObj,
-            GetTilePos(col,row),
+            GetTilePos(col,row, tileType),
             tileObj.transform.rotation).AddComponent<Tile>();
-        tile.SetupTile(col,row);
+        tile.SetupTile(col, row, tileType);
         tile.SetupSprite(imageMap[row+"_"+col]);
             
 
         return tile;
     }
 
-    public Vector3 GetTilePos(int col, int row)
+    public Vector3 GetTilePos(int col, int row, TileTypeT type)
     {
         //Debug.Log("GetTilePos");
+        
+
+        
+        
         float x = (float) col - 1;
         float y = (float) 2.0f - row;
-        
+
+        if(type == TileTypeT.LARGE)
+        {
+            Debug.Log("Do i get here?");
+            x = (float) col - 1;
+            y = (float) 1.70f - (row*1.70f);
+        }
+
         float z = -0.2f;
         Vector3 pos = new Vector3(x,y,z);
+        Debug.Log("Pos:"+pos.ToString());
         return pos;
     }
 
@@ -260,9 +318,10 @@ public class BoardManager : MonoBehaviour
             board[toRow][toCol] = fromTile; //Moving tile to its new place on the board
             board[row][col] = null; //removing the tile from the old slot on the board.
             fromTile.Move(toRow, toCol);
-            totalMoves++;
+            movesLeft--;
             Debug.Log("Total Moves: "+totalMoves);
             GameEnded();
+            UpdateUI();
         }
         else
         {
@@ -304,11 +363,34 @@ public class BoardManager : MonoBehaviour
 
         if(numFaulty>0)
             return false;
+
+        if(movesLeft > 0)
+            return false;    
         
         Debug.Log("GAME ENDED");
         return true;
 
 
     }
+
+    public void UpdateUI()
+    {
+        BoardUIManager.instance.UpdateMoves(movesLeft);
+    }
+
+}
+
+public class LevelInfo
+{
+    public string name;
+    public int tiles;
+
+    public int gaps;
+
+    public int moves;
+
+    public int columns;
+
+    public int rows;
 
 }
