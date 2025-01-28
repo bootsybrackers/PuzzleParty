@@ -7,6 +7,9 @@ public class BoardUIManager : MonoBehaviour
 {
     [SerializeField]
     public TextMeshProUGUI moves;
+
+    [SerializeField]
+    public Canvas canvas;
     // Start is called before the first frame update
     public static BoardUIManager instance;
     void Start()
@@ -16,6 +19,7 @@ public class BoardUIManager : MonoBehaviour
             instance = this;
         }
         moves.text = "poooop";
+        canvas.enabled = false;
     }
 
     // Update is called once per frame
@@ -27,6 +31,21 @@ public class BoardUIManager : MonoBehaviour
     public void UpdateMoves(int movesLeft)
     {
         moves.text = ""+movesLeft;
+    }
+
+    public void TriggerOverlay(bool success)
+    {
+        Debug.Log("Trigger overlay");
+        if(success)
+        {
+
+        }
+        else 
+        {
+            Debug.Log("Triggering "+canvas.name);
+            canvas.enabled = true;
+            Debug.Log("Triggered");      
+        }
     }
 
 

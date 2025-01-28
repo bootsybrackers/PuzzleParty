@@ -319,7 +319,7 @@ public class BoardManager : MonoBehaviour
             board[row][col] = null; //removing the tile from the old slot on the board.
             fromTile.Move(toRow, toCol);
             movesLeft--;
-            Debug.Log("Total Moves: "+totalMoves);
+            Debug.Log("Moves left: "+movesLeft);
             GameEnded();
             UpdateUI();
         }
@@ -358,16 +358,22 @@ public class BoardManager : MonoBehaviour
 
         }
 
-        //Debug.Log("Tiles correct:"+numCorrect);
-        //Debug.Log("Tiles wrong:"+numFaulty);
+        Debug.Log("Tiles correct:"+numCorrect);
+        Debug.Log("Tiles wrong:"+numFaulty);
 
-        if(numFaulty>0)
-            return false;
+        
 
         if(movesLeft > 0)
-            return false;    
-        
+        {
+            if(numFaulty > 0)
+            {
+                return false;
+            }
+            
+        }
+
         Debug.Log("GAME ENDED");
+        BoardUIManager.instance.TriggerOverlay(false);
         return true;
 
 

@@ -62,11 +62,11 @@ public class Tile : MonoBehaviour
         var startX = transform.position.x;
         var startY = transform.position.y;
 
-        Debug.Log("start X: "+startX+" start Y:"+startY);
+        //Debug.Log("start X: "+startX+" start Y:"+startY);
 
         var diffX = Mathf.Abs(startX - position.x);
 	    var diffY = Mathf.Abs(startY - position.y);
-        Debug.Log("pos X: "+position.x+" pos Y:"+position.y);
+        //Debug.Log("pos X: "+position.x+" pos Y:"+position.y);
 
 
         bool right = position.x > (startX+dragThreshold);
