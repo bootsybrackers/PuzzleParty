@@ -1,5 +1,7 @@
 public class LevelConf
 {
+    public int id;
+
     public int rows;
     public int columns;
     public int moves;

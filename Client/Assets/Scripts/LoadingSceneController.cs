@@ -16,11 +16,14 @@ public class LoadingSceneController : MonoBehaviour
 
     private ISceneLoader sceneLoader;
 
+    private IProgressionService progressionService;
+
     void Start()
     {
         // Initialize services
         ServiceLocator.GetInstance().Configure();
         sceneLoader = ServiceLocator.GetInstance().Get<SceneLoader>();
+        progressionService = ServiceLocator.GetInstance().Get<ProgressionService>();
 
         // Start loading
         StartCoroutine(LoadGameResources());
@@ -30,6 +33,9 @@ public class LoadingSceneController : MonoBehaviour
     {
         float startTime = Time.time;
         float progress = 0f;
+
+        //Remove old progression. Just for dev mode
+        progressionService.WipeProgression();
 
         // Simulate loading resources (you can replace this with actual resource loading)
         while (progress < 1f)

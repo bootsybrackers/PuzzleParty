@@ -19,7 +19,7 @@ public class LevelService : ILevelService
             " rows: "+lc.rows);
         
         Level level = new Level();
-        level.Id = -1;
+        level.Id = lc.id;
         level.Columns = lc.columns;
         level.Rows = lc.rows;
         level.Moves = lc.moves;

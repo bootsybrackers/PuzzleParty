@@ -391,6 +391,72 @@ namespace PuzzleParty.Board
             Debug.Log($"After one frame - particleCount: {particles.particleCount}, isPlaying: {particles.isPlaying}, isEmitting: {particles.isEmitting}");
         }
 
+        public void FillHolesAndShowOverlay(BoardTile[][] completeBoard, bool success, int coinsEarned, System.Action onRestart, System.Action onNextLevel)
+        {
+            // First, fill in the holes to show complete image
+            StartCoroutine(FillHolesAnimation(completeBoard, () => {
+                // After holes are filled, show the overlay
+                ShowGameEndOverlay(success, coinsEarned, onRestart, onNextLevel);
+            }));
+        }
+
+        private IEnumerator FillHolesAnimation(BoardTile[][] completeBoard, System.Action onComplete)
+        {
+            Debug.Log("FillHolesAnimation started");
+
+            // completeBoard has all tiles with no holes
+            // We need to find positions that don't have tile objects currently and create them
+            for (int i = 0; i < completeBoard.Length; i++)
+            {
+                for (int j = 0; j < completeBoard[i].Length; j++)
+                {
+                    BoardTile tile = completeBoard[i][j];
+
+                    // If there's a tile in the complete board at this position
+                    if (tile != null)
+                    {
+                        string key = GetTileKey(tile.Row, tile.Column);
+
+                        // Check if we don't already have a tile object for this position
+                        if (!tileObjects.ContainsKey(key))
+                        {
+                            Debug.Log($"Creating missing tile at position [{i},{j}] for tile [{tile.Row},{tile.Column}]");
+
+                            int displayCol = j + 1;
+                            int displayRow = i + 1;
+
+                            Texture2D tex = level.LevelSprite.texture;
+                            Texture2D resizedTex = ResizeTexture(tex, TEXTURE_WIDTH, TEXTURE_HEIGHT);
+
+                            GameObject tileObj = CreateTile2(resizedTex, tile.Column + 1, tile.Row + 1, displayCol, displayRow, tilePixelWidth, tilePixelHeight);
+
+                            // Start with alpha 0 for fade in effect
+                            SpriteRenderer sr = tileObj.GetComponent<SpriteRenderer>();
+                            if (sr != null)
+                            {
+                                Color color = sr.color;
+                                color.a = 0f;
+                                sr.color = color;
+
+                                // Fade in the tile
+                                sr.DOFade(1f, 0.5f).SetEase(Ease.InQuad);
+                            }
+
+                            tileObjects[key] = tileObj;
+                        }
+                    }
+                }
+            }
+
+            Debug.Log("FillHolesAnimation waiting for fade to complete");
+
+            // Wait for fade in animation to complete
+            yield return new WaitForSeconds(0.5f);
+
+            Debug.Log("FillHolesAnimation complete");
+            onComplete?.Invoke();
+        }
+
         public void ShowGameEndOverlay(bool success, int coinsEarned, System.Action onRestart, System.Action onNextLevel)
         {
             Debug.Log($"ShowGameEndOverlay called. success: {success}, coinsEarned: {coinsEarned}");

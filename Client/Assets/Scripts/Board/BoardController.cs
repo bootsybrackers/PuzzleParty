@@ -253,34 +253,23 @@ namespace PuzzleParty.Board
             progression.coins += coinsEarned;
 
             // Update last beaten level if this is the next level
-            // Try to extract level number from name (e.g., "level1" -> 1)
-            string levelNumberStr = currentLevel.Name.Replace("level", "").Replace("Level", "").Trim();
-            if (int.TryParse(levelNumberStr, out int currentLevelNumber))
-            {
-                if (currentLevelNumber > progression.lastBeatenLevel)
-                {
-                    progression.lastBeatenLevel = currentLevelNumber;
-                }
-            }
-            else
-            {
-                Debug.LogWarning($"Could not parse level number from level name: {currentLevel.Name}");
-            }
+            progression.lastBeatenLevel = currentLevel.Id;
 
             progressionService.SaveProgression(progression);
 
             Debug.Log($"Earned {coinsEarned} coins! Total coins: {progression.coins}");
             Debug.Log($"About to show overlay. boardView is null: {boardView == null}");
 
-            // Show success overlay with coin animation
-            boardView.ShowGameEndOverlay(
+            // Fill holes to show complete image, then show success overlay
+            boardView.FillHolesAndShowOverlay(
+                boardManager.GetInitialBoard(),
                 success: true,
                 coinsEarned: coinsEarned,
                 onRestart: RestartLevel,
                 onNextLevel: LoadNextLevel
             );
 
-            Debug.Log("ShowGameEndOverlay called");
+            Debug.Log("FillHolesAndShowOverlay called");
         }
 
         void OnOutOfMoves()
