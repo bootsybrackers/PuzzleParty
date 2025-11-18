@@ -2,11 +2,13 @@ using System;
 using System.IO;
 using UnityEngine;
 
-public class ProgressionService : IProgressionService
+namespace PuzzleParty.Progressions
 {
+    public class ProgressionService : IProgressionService
+    {
 
-    private static string SavePath => Path.Combine(Application.persistentDataPath, "progression.json");
-    public Progression GetProgression()
+        private static string SavePath => Path.Combine(Application.persistentDataPath, "progression.json");
+        public Progression GetProgression()
     {
         Debug.Log($"Loading progression from: {SavePath}");
 
@@ -50,5 +52,6 @@ public class ProgressionService : IProgressionService
         SaveProgression(prog);
         return prog;
 
+    }
     }
 }

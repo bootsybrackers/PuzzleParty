@@ -1,8 +1,11 @@
-[System.Serializable]
-public class Progression
+namespace PuzzleParty.Progressions
 {
-    public int lastBeatenLevel;
-    public int coins;
+    [System.Serializable]
+    public class Progression
+    {
+        public int lastBeatenLevel;
+        public int coins;
 
-    //could also contain booster array
+        //could also contain booster array
+    }
 }

@@ -1,13 +1,18 @@
 using System;
 using System.Collections.Generic;
 using UnityEditorInternal;
+using PuzzleParty.Maps;
+using PuzzleParty.Levels;
+using PuzzleParty.Progressions;
 
-public class ServiceLocator : IServiceLocator
+namespace PuzzleParty.Service
 {
-    
-    private static ServiceLocator Instance;
+    public class ServiceLocator : IServiceLocator
+    {
 
-    private Dictionary<Type,object> Services = new(); 
+        private static ServiceLocator Instance;
+
+        private Dictionary<Type,object> Services = new(); 
     
     public ServiceLocator()
     {
@@ -45,6 +50,8 @@ public class ServiceLocator : IServiceLocator
         Register(new ProgressionService());
         Register(new LevelService());
         Register(new SceneLoader());
+        Register(new MapService());
+        Register(new TransitionService());
     }
-
+    }
 }

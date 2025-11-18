@@ -2,70 +2,50 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class SceneLoader : ISceneLoader
+namespace PuzzleParty.Service
 {
+    public class SceneLoader : ISceneLoader
+    {
     public void LoadScene(string sceneName)
     {
-        SceneManager.LoadScene(sceneName);
+        LoadSceneWithTransition(sceneName);
     }
 
     public void LoadSceneAsync(string sceneName, System.Action onComplete = null)
     {
-        // Need to start coroutine from a MonoBehaviour
-        // This will be handled by a SceneLoaderBehaviour component
-        SceneLoaderBehaviour.Instance.LoadSceneAsyncCoroutine(sceneName, onComplete);
+        // Use SceneManager's async loading with callback
+        AsyncOperation asyncOp = SceneManager.LoadSceneAsync(sceneName);
+        if (asyncOp != null && onComplete != null)
+        {
+            asyncOp.completed += (op) => onComplete();
+        }
     }
 
     public void LoadMainMenu()
     {
-        LoadScene("MainMenuScene");
+        LoadSceneWithTransition("MainMenuScene");
     }
 
     public void LoadGame()
     {
-        LoadScene("GameScene");
+        LoadSceneWithTransition("GameScene");
     }
 
     public void LoadLoading()
     {
-        LoadScene("LoadingScene");
+        LoadSceneWithTransition("LoadingScene");
     }
-}
 
-// MonoBehaviour wrapper to handle coroutines
-public class SceneLoaderBehaviour : MonoBehaviour
-{
-    private static SceneLoaderBehaviour instance;
-
-    public static SceneLoaderBehaviour Instance
+    private void LoadSceneWithTransition(string sceneName)
     {
-        get
+        ITransitionService transitionService = ServiceLocator.GetInstance().Get<TransitionService>();
+
+        // Fade out, then load scene, then fade in
+        transitionService.FadeOut(() =>
         {
-            if (instance == null)
-            {
-                GameObject go = new GameObject("SceneLoaderBehaviour");
-                instance = go.AddComponent<SceneLoaderBehaviour>();
-                DontDestroyOnLoad(go);
-            }
-            return instance;
-        }
+            SceneManager.LoadScene(sceneName);
+            // Fade in will be called by the new scene's controller
+        });
     }
-
-    public void LoadSceneAsyncCoroutine(string sceneName, System.Action onComplete)
-    {
-        StartCoroutine(LoadSceneAsyncRoutine(sceneName, onComplete));
-    }
-
-    private IEnumerator LoadSceneAsyncRoutine(string sceneName, System.Action onComplete)
-    {
-        AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(sceneName);
-
-        // Wait until the asynchronous scene fully loads
-        while (!asyncLoad.isDone)
-        {
-            yield return null;
-        }
-
-        onComplete?.Invoke();
     }
 }

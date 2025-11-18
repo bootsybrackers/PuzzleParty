@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
-using PuzzleParty.Board;
+using PuzzleParty.Levels;
 
 namespace PuzzleParty.Board
 {

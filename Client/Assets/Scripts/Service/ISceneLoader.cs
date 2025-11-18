@@ -1,8 +1,11 @@
-public interface ISceneLoader
+namespace PuzzleParty.Service
 {
-    void LoadScene(string sceneName);
-    void LoadSceneAsync(string sceneName, System.Action onComplete = null);
-    void LoadMainMenu();
-    void LoadGame();
-    void LoadLoading();
+    public interface ISceneLoader
+    {
+        void LoadScene(string sceneName);
+        void LoadSceneAsync(string sceneName, System.Action onComplete = null);
+        void LoadMainMenu();
+        void LoadGame();
+        void LoadLoading();
+    }
 }

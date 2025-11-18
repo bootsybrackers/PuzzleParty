@@ -5,6 +5,9 @@ using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using PuzzleParty.Levels;
+using PuzzleParty.Progressions;
+using PuzzleParty.Service;
 
 namespace PuzzleParty.Board
 {
@@ -26,6 +29,7 @@ namespace PuzzleParty.Board
         private ILevelService levelService;
         private IProgressionService progressionService;
         private ISceneLoader sceneLoader;
+        private ITransitionService transitionService;
         private BoardView boardView;
         private BoardManager boardManager;
         private Level currentLevel;
@@ -50,7 +54,11 @@ namespace PuzzleParty.Board
             levelService = ServiceLocator.GetInstance().Get<LevelService>();
             progressionService = ServiceLocator.GetInstance().Get<ProgressionService>();
             sceneLoader = ServiceLocator.GetInstance().Get<SceneLoader>();
+            transitionService = ServiceLocator.GetInstance().Get<TransitionService>();
             SetupLevel();
+
+            // Fade in from black when scene starts
+            transitionService.FadeIn();
         }
 
         // Update is called once per frame

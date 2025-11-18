@@ -2,9 +2,13 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using PuzzleParty.Service;
+using PuzzleParty.Progressions;
 
-public class LoadingSceneController : MonoBehaviour
+namespace PuzzleParty.UI
 {
+    public class LoadingSceneController : MonoBehaviour
+    {
     [SerializeField]
     private TextMeshProUGUI loadingText;
 
@@ -15,18 +19,22 @@ public class LoadingSceneController : MonoBehaviour
     private float minimumLoadingTime = 2f; // Minimum time to show loading screen
 
     private ISceneLoader sceneLoader;
-
     private IProgressionService progressionService;
+    private ITransitionService transitionService;
 
     void Start()
     {
-        // Initialize services
-        ServiceLocator.GetInstance().Configure();
+        // Get services
         sceneLoader = ServiceLocator.GetInstance().Get<SceneLoader>();
         progressionService = ServiceLocator.GetInstance().Get<ProgressionService>();
+        transitionService = ServiceLocator.GetInstance().Get<TransitionService>();
 
-        // Start loading
-        StartCoroutine(LoadGameResources());
+        // Fade in from black when scene starts
+        transitionService.FadeIn(() =>
+        {
+            // Start loading after fade in
+            StartCoroutine(LoadGameResources());
+        });
     }
 
     private IEnumerator LoadGameResources()
@@ -66,5 +74,6 @@ public class LoadingSceneController : MonoBehaviour
 
         // Loading complete, go to main menu
         sceneLoader.LoadMainMenu();
+    }
     }
 }

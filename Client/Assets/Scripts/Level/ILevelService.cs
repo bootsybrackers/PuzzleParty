@@ -1,5 +1,8 @@
-public interface ILevelService
+namespace PuzzleParty.Levels
 {
-    Level GetNextLevel();
-    Level GetLevel(int levelId);
+    public interface ILevelService
+    {
+        Level GetNextLevel();
+        Level GetLevel(int levelId);
+    }
 }

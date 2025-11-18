@@ -1,10 +1,14 @@
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using PuzzleParty.Progressions;
+using PuzzleParty.Service;
 
-public class LevelService : ILevelService
+namespace PuzzleParty.Levels
 {
-    private ProgressionService progressionService;
+    public class LevelService : ILevelService
+    {
+        private ProgressionService progressionService;
 
     public Level GetLevel(int levelId)
     {
@@ -108,6 +112,5 @@ public class LevelService : ILevelService
         return 256;
 
     }
-
-
+    }
 }

@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
 using TMPro;
+using PuzzleParty.Levels;
 
 namespace PuzzleParty.Board
 {

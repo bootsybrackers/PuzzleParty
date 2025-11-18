@@ -1,9 +1,11 @@
 using System;
 
-
-public interface IServiceLocator
+namespace PuzzleParty.Service
 {
-    T Get<T>();
+    public interface IServiceLocator
+    {
+        T Get<T>();
 
-    void Register<T>(T service);
+        void Register<T>(T service);
+    }
 }

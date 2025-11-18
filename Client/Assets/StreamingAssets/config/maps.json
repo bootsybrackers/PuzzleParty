@@ -1,0 +1,25 @@
+{
+  "maps": [
+    {
+      "id": 1,
+      "name": "Legendary Euro Cities",
+      "startLevel": 1,
+      "endLevel": 5,
+      "theme": ""
+    },
+    {
+      "id": 2,
+      "name": "North American Pearls",
+      "startLevel": 6,
+      "endLevel": 15,
+      "theme": ""
+    },
+    {
+      "id": 3,
+      "name": "Mountain Peak",
+      "startLevel": 16,
+      "endLevel": 30,
+      "theme": ""
+    }
+  ]
+}

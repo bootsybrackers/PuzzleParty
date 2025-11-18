@@ -1,10 +1,13 @@
-public class LevelConf
+namespace PuzzleParty.Levels
 {
-    public int id;
+    public class LevelConf
+    {
+        public int id;
 
-    public int rows;
-    public int columns;
-    public int moves;
-    public int holes;
-    public string name; 
+        public int rows;
+        public int columns;
+        public int moves;
+        public int holes;
+        public string name;
+    }
 }
