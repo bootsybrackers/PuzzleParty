@@ -41,6 +41,9 @@ namespace PuzzleParty.Board
         private bool isDragging = false;
         private float dragThreshold = 0.2f;
 
+        // Power-up tracking
+        private bool hasUsedCompletePuzzle = false;
+
         public BoardController()
         {
         }
@@ -79,6 +82,8 @@ namespace PuzzleParty.Board
                 isDragging = true;
             }
 
+            
+
             if (Input.GetMouseButtonUp(0) && isDragging)
             {
                 Vector3 mouseUpPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
@@ -99,6 +104,31 @@ namespace PuzzleParty.Board
                 Debug.Log("No tile clicked");
                 return;
             }
+
+            // Get the actual tile from board (with IsLocked state)
+            BoardTile[][] currentBoard = boardManager.GetCurrentBoard();
+            BoardTile actualTile = null;
+            for (int i = 0; i < currentBoard.Length; i++)
+            {
+                for (int j = 0; j < currentBoard[i].Length; j++)
+                {
+                    BoardTile tile = currentBoard[i][j];
+                    if (tile != null && tile.Row == clickedTile.Row && tile.Column == clickedTile.Column)
+                    {
+                        actualTile = tile;
+                        break;
+                    }
+                }
+                if (actualTile != null) break;
+            }
+
+            if (actualTile == null)
+            {
+                Debug.Log("Could not find tile in board");
+                return;
+            }
+
+            clickedTile = actualTile;
 
             // Calculate swipe direction
             Vector3 swipeVector = endPos - startPos;
@@ -124,6 +154,9 @@ namespace PuzzleParty.Board
                 boardView.UpdateTilePositions(boardManager.GetCurrentBoard(), () => {
                     // Animation complete, now check for correctly placed tiles
                     CheckForCorrectlyPlacedTiles();
+
+                    // Check for tiles that can be unlocked
+                    CheckAndUnlockTiles();
 
                     // Check if puzzle is solved
                     if (boardManager.IsSolved)
@@ -181,6 +214,10 @@ namespace PuzzleParty.Board
             tilesMarkedCorrect.Clear();
             isFirstCheck = true;
             isInputEnabled = false;
+
+            // Reset power-up usage for this level
+            hasUsedCompletePuzzle = false;
+            SetupPowerUpButton();
 
             // Start the animation sequence with welcome text and scaling
             boardView.StartAnimation(() => {
@@ -317,9 +354,85 @@ namespace PuzzleParty.Board
         {
             Debug.Log("Loading next level...");
 
+            // Set flag to indicate we just completed a level
+            PlayerPrefs.SetInt("JustCompletedLevel", 1);
+            PlayerPrefs.Save();
+
             // Go back to main menu to select next level
             // (You can change this to load the next level directly if you prefer)
             sceneLoader.LoadMainMenu();
+        }
+
+        void SetupPowerUpButton()
+        {
+            if (uiElements.completePuzzleButton != null)
+            {
+                // Remove existing listeners
+                uiElements.completePuzzleButton.onClick.RemoveAllListeners();
+
+                // Add listener
+                uiElements.completePuzzleButton.onClick.AddListener(OnCompletePuzzleButtonClicked);
+
+                // Enable button (will be disabled after first use)
+                uiElements.completePuzzleButton.interactable = true;
+
+                Debug.Log("Complete Puzzle power-up button setup complete");
+            }
+            else
+            {
+                Debug.LogWarning("Complete Puzzle button is not assigned in UI Elements");
+            }
+        }
+
+        void OnCompletePuzzleButtonClicked()
+        {
+            if (hasUsedCompletePuzzle)
+            {
+                Debug.LogWarning("Complete Puzzle power-up already used this level");
+                return;
+            }
+
+            Debug.Log("Complete Puzzle power-up activated!");
+
+            // Mark as used
+            hasUsedCompletePuzzle = true;
+
+            // Disable button
+            if (uiElements.completePuzzleButton != null)
+            {
+                uiElements.completePuzzleButton.interactable = false;
+            }
+
+            // Disable input during power-up
+            isInputEnabled = false;
+
+            // Show complete puzzle overlay for 3 seconds
+            boardView.ShowCompletePuzzleOverlay(currentLevel.LevelSprite, () =>
+            {
+                // Re-enable input after overlay disappears
+                isInputEnabled = true;
+                Debug.Log("Complete Puzzle power-up finished");
+            });
+        }
+
+        void CheckAndUnlockTiles()
+        {
+            List<(int row, int col)> unlockedTiles = boardManager.CheckAndUnlockTiles();
+
+            if (unlockedTiles.Count > 0)
+            {
+                Debug.Log($"Unlocked {unlockedTiles.Count} tiles");
+
+                // Trigger unlock animation for each tile
+                foreach (var tile in unlockedTiles)
+                {
+                    boardView.AnimateUnlock(tile.row, tile.col);
+                }
+
+                // Force update tile positions to remove chains immediately if animation doesn't work
+                // This will call UpdateChainOverlay for all tiles with the current locked state
+                boardView.UpdateTilePositions(boardManager.GetCurrentBoard(), null);
+            }
         }
 
     }

@@ -31,12 +31,27 @@ namespace PuzzleParty.Levels
         level.LevelSprite = sprite;
         level.Name = lc.name;
 
+        // Load locked tiles if present
+        Debug.Log($"LevelConf locked_tiles is null: {lc.locked_tiles == null}");
+        if (lc.locked_tiles != null)
+        {
+            Debug.Log($"LevelConf locked_tiles length: {lc.locked_tiles.Length}");
+        }
 
+        if (lc.locked_tiles != null && lc.locked_tiles.Length > 0)
+        {
+            foreach (var lockedTile in lc.locked_tiles)
+            {
+                Debug.Log($"Loading locked tile: row={lockedTile.row}, column={lockedTile.column}");
+                level.LockedTiles.Add((lockedTile.row, lockedTile.column));
+            }
+            Debug.Log($"Loaded {level.LockedTiles.Count} locked tiles for level {levelId}");
+        }
+        else
+        {
+            Debug.Log($"No locked tiles defined for level {levelId}");
+        }
 
-        //level.Id = 
-        
-
-        
         return level;
     }
 

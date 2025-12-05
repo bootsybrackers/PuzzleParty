@@ -82,6 +82,8 @@ namespace PuzzleParty.Board
                         GameObject tileObj = CreateTile2(newTex, tile.Column + 1, tile.Row + 1, displayCol, displayRow, tilePixelWidth, tilePixelHeight);
                         string key = GetTileKey(tile.Row, tile.Column);
                         tileObjects[key] = tileObj;
+
+                        // Don't add chains during setup - we'll add them after scramble animation
                     }
                 }
             }
@@ -102,7 +104,7 @@ namespace PuzzleParty.Board
             // Prepare welcome text and wait one frame to ensure changes are applied
             if (uiElements?.welcomeText != null)
             {
-                uiElements.welcomeText.text = $"Welcome to {level.Name}";
+                uiElements.welcomeText.text = $"{level.Name}";
 
                 // Set initial alpha to 0
                 Color textColor = uiElements.welcomeText.color;
@@ -220,8 +222,83 @@ namespace PuzzleParty.Board
                         tileObjects.Remove(key);
                     }
                 }
-                onComplete?.Invoke();
+
+                // After scramble completes, add locks with animation
+                AnimateLocksAppearing(scrambledBoard, onComplete);
             });
+        }
+
+        private void AnimateLocksAppearing(BoardTile[][] scrambledBoard, System.Action onComplete)
+        {
+            Debug.Log("AnimateLocksAppearing called");
+
+            // Find all locked tiles in the scrambled board
+            List<GameObject> lockedTileObjects = new List<GameObject>();
+
+            for (int i = 0; i < scrambledBoard.Length; i++)
+            {
+                for (int j = 0; j < scrambledBoard[i].Length; j++)
+                {
+                    BoardTile tile = scrambledBoard[i][j];
+                    if (tile != null && tile.IsLocked)
+                    {
+                        string key = GetTileKey(tile.Row, tile.Column);
+                        if (tileObjects.TryGetValue(key, out GameObject tileObj))
+                        {
+                            lockedTileObjects.Add(tileObj);
+                            Debug.Log($"Found locked tile at [{tile.Row},{tile.Column}] for lock animation");
+                        }
+                    }
+                }
+            }
+
+            if (lockedTileObjects.Count > 0)
+            {
+                Debug.Log($"Animating {lockedTileObjects.Count} locks appearing");
+
+                // Add chains to all locked tiles with stagger animation
+                DG.Tweening.Sequence lockSequence = DOTween.Sequence();
+
+                for (int i = 0; i < lockedTileObjects.Count; i++)
+                {
+                    GameObject tileObj = lockedTileObjects[i];
+
+                    // Add chain overlay
+                    AddChainOverlay(tileObj);
+
+                    // Find the chain overlay we just added
+                    Transform chainOverlay = tileObj.transform.Find("ChainOverlay");
+                    if (chainOverlay != null)
+                    {
+                        // Save the target scale (the correct size calculated by AddChainOverlay)
+                        Vector3 targetScale = chainOverlay.localScale;
+
+                        // Start with scale 0
+                        chainOverlay.localScale = Vector3.zero;
+
+                        // Animate scale up to the target scale with bounce effect, staggered
+                        float delay = i * 0.1f; // 0.1 second stagger between each lock
+                        lockSequence.Insert(delay, chainOverlay.DOScale(targetScale, 0.5f).SetEase(Ease.OutBack));
+
+                        // Also start with alpha 0 and fade in
+                        SpriteRenderer chainSr = chainOverlay.GetComponent<SpriteRenderer>();
+                        if (chainSr != null)
+                        {
+                            Color color = chainSr.color;
+                            color.a = 0f;
+                            chainSr.color = color;
+                            lockSequence.Insert(delay, chainSr.DOFade(1f, 0.5f));
+                        }
+                    }
+                }
+
+                lockSequence.OnComplete(() => onComplete?.Invoke());
+            }
+            else
+            {
+                Debug.Log("No locked tiles found, calling onComplete immediately");
+                onComplete?.Invoke();
+            }
         }
 
         private string GetTileKey(int row, int col)
@@ -283,6 +360,9 @@ namespace PuzzleParty.Board
                             Vector3 targetPos = GetLocalPos2(j + 1, i + 1, tilePixelWidth, tilePixelHeight);
                             moveSequence.Join(tileObj.transform.DOLocalMove(targetPos, 0.1f).SetEase(Ease.OutQuad));
                             hasAnimations = true;
+
+                            // Update chain overlay based on locked state
+                            UpdateChainOverlay(tileObj, tile.IsLocked);
                         }
                     }
                 }
@@ -430,6 +510,12 @@ namespace PuzzleParty.Board
                             Texture2D resizedTex = ResizeTexture(tex, TEXTURE_WIDTH, TEXTURE_HEIGHT);
 
                             GameObject tileObj = CreateTile2(resizedTex, tile.Column + 1, tile.Row + 1, displayCol, displayRow, tilePixelWidth, tilePixelHeight);
+
+                            // Add chain overlay if tile is locked
+                            if (tile.IsLocked)
+                            {
+                                AddChainOverlay(tileObj);
+                            }
 
                             // Start with alpha 0 for fade in effect
                             SpriteRenderer sr = tileObj.GetComponent<SpriteRenderer>();
@@ -682,6 +768,225 @@ namespace PuzzleParty.Board
             newTex.SetPixels(pixels);
             newTex.Apply();
             return newTex;
+        }
+
+        /// <summary>
+        /// Shows the complete puzzle image overlay for 3 seconds
+        /// </summary>
+        public void ShowCompletePuzzleOverlay(Sprite completeImage, System.Action onComplete = null)
+        {
+            Debug.Log("ShowCompletePuzzleOverlay called");
+            Debug.Log($"  completeImage is null: {completeImage == null}");
+            Debug.Log($"  transform is null: {transform == null}");
+
+            if (completeImage == null)
+            {
+                Debug.LogError("Complete image sprite is null!");
+                onComplete?.Invoke();
+                return;
+            }
+
+            // Create overlay GameObject as a screen space overlay (top level)
+            GameObject overlayObj = new GameObject("CompletePuzzleOverlay");
+            Debug.Log($"  Created overlay object: {overlayObj.name}");
+
+            // Add Canvas for UI overlay
+            Canvas canvas = overlayObj.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 1000; // Above everything
+
+            // Add CanvasScaler for proper scaling
+            CanvasScaler scaler = overlayObj.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1080, 1920);
+
+            // Add GraphicRaycaster for interaction blocking
+            overlayObj.AddComponent<GraphicRaycaster>();
+
+            // Add semi-transparent background
+            GameObject bgObj = new GameObject("Background");
+            bgObj.transform.SetParent(overlayObj.transform, false);
+            Image bgImage = bgObj.AddComponent<Image>();
+            bgImage.color = new Color(0, 0, 0, 0.7f); // Semi-transparent black
+            RectTransform bgRect = bgObj.GetComponent<RectTransform>();
+            bgRect.anchorMin = Vector2.zero;
+            bgRect.anchorMax = Vector2.one;
+            bgRect.sizeDelta = Vector2.zero;
+
+            // Add complete puzzle image
+            GameObject imageObj = new GameObject("CompletePuzzle");
+            imageObj.transform.SetParent(overlayObj.transform, false);
+            Image puzzleImage = imageObj.AddComponent<Image>();
+            puzzleImage.sprite = completeImage;
+            puzzleImage.preserveAspect = true;
+
+            RectTransform imageRect = imageObj.GetComponent<RectTransform>();
+            // Center the image and use the actual board dimensions
+            imageRect.anchorMin = new Vector2(0.5f, 0.5f);
+            imageRect.anchorMax = new Vector2(0.5f, 0.5f);
+            imageRect.pivot = new Vector2(0.5f, 0.5f);
+
+            // Calculate size to match board dimensions
+            // Board is 4.0 width x 7.0 height in world units
+            // Convert to screen pixels based on camera
+            float pixelsPerUnit = Screen.height / (Camera.main.orthographicSize * 2);
+            float boardWidthPixels = 4.0f * pixelsPerUnit;
+            float boardHeightPixels = 7.0f * pixelsPerUnit;
+
+            imageRect.sizeDelta = new Vector2(boardWidthPixels, boardHeightPixels);
+            imageRect.anchoredPosition = Vector2.zero;
+
+            // Fade in animation
+            CanvasGroup canvasGroup = overlayObj.AddComponent<CanvasGroup>();
+            canvasGroup.alpha = 0f;
+
+            Debug.Log("  Starting fade in animation");
+
+            canvasGroup.DOFade(1f, 0.3f)
+                .OnComplete(() =>
+                {
+                    Debug.Log("  Fade in complete, waiting 3 seconds");
+                    // Wait 3 seconds
+                    DOVirtual.DelayedCall(3f, () =>
+                    {
+                        Debug.Log("  Starting fade out");
+                        // Fade out
+                        canvasGroup.DOFade(0f, 0.3f)
+                            .OnComplete(() =>
+                            {
+                                Debug.Log("  Fade out complete, destroying overlay");
+                                Destroy(overlayObj);
+                                onComplete?.Invoke();
+                            });
+                    });
+                });
+        }
+
+        /// <summary>
+        /// Updates chain overlay on a tile based on locked state
+        /// </summary>
+        private void UpdateChainOverlay(GameObject tileObj, bool shouldBeLocked)
+        {
+            Transform chainOverlay = tileObj.transform.Find("ChainOverlay");
+            bool hasChain = chainOverlay != null;
+
+            if (shouldBeLocked && !hasChain)
+            {
+                // Should be locked but no chain - add it
+                AddChainOverlay(tileObj);
+            }
+            else if (!shouldBeLocked && hasChain)
+            {
+                // Should not be locked but has chain - remove it immediately (no animation here)
+                Destroy(chainOverlay.gameObject);
+                Debug.Log($"Removed chain overlay from {tileObj.name} (tile unlocked)");
+            }
+        }
+
+        /// <summary>
+        /// Adds a chain overlay sprite to a locked tile
+        /// </summary>
+        private void AddChainOverlay(GameObject tileObj)
+        {
+            Debug.Log($"AddChainOverlay called for tile {tileObj.name}");
+
+            // Load the chains sprite from Resources
+            Sprite chainSprite = Resources.Load<Sprite>("Images/chains");
+
+            Debug.Log($"Chain sprite loaded: {chainSprite != null}");
+
+            if (chainSprite == null)
+            {
+                Debug.LogError("Failed to load chains.png from Resources/Images/");
+                Debug.LogError("Make sure chains.png is at: Client/Assets/Resources/Images/chains.png");
+                return;
+            }
+
+            // Create chain overlay as child of tile
+            GameObject chainObj = new GameObject("ChainOverlay");
+            chainObj.transform.SetParent(tileObj.transform, false);
+
+            SpriteRenderer chainSr = chainObj.AddComponent<SpriteRenderer>();
+            chainSr.sprite = chainSprite;
+            chainSr.sortingOrder = 20; // Above the tile
+
+            // Position at tile center
+            chainObj.transform.localPosition = Vector3.zero;
+
+            // Get the tile's sprite renderer to match size
+            SpriteRenderer tileSr = tileObj.GetComponent<SpriteRenderer>();
+            if (tileSr != null && tileSr.sprite != null)
+            {
+                // Calculate scale to match tile size
+                float tileWidth = tileSr.sprite.bounds.size.x;
+                float tileHeight = tileSr.sprite.bounds.size.y;
+                float chainWidth = chainSprite.bounds.size.x;
+                float chainHeight = chainSprite.bounds.size.y;
+
+                // Scale chain to fit tile (cover it completely)
+                float scaleX = tileWidth / chainWidth;
+                float scaleY = tileHeight / chainHeight;
+
+                chainObj.transform.localScale = new Vector3(scaleX, scaleY, 1f);
+                Debug.Log($"Chain scale: {scaleX}x{scaleY}, Tile size: {tileWidth}x{tileHeight}, Chain size: {chainWidth}x{chainHeight}");
+            }
+            else
+            {
+                // Fallback to uniform scale
+                chainObj.transform.localScale = Vector3.one;
+            }
+
+            Debug.Log($"Successfully added chain overlay to tile {tileObj.name}");
+        }
+
+        /// <summary>
+        /// Animates the unlocking of a tile (removes chain overlay with animation)
+        /// </summary>
+        public void AnimateUnlock(int row, int col)
+        {
+            string key = GetTileKey(row, col);
+            Debug.Log($"AnimateUnlock called for tile [{row},{col}], key: {key}");
+
+            if (tileObjects.TryGetValue(key, out GameObject tileObj))
+            {
+                Debug.Log($"Found tile object: {tileObj.name}");
+
+                // Find the chain overlay child
+                Transform chainOverlay = tileObj.transform.Find("ChainOverlay");
+
+                Debug.Log($"Chain overlay found: {chainOverlay != null}");
+
+                if (chainOverlay != null)
+                {
+                    Debug.Log($"Animating unlock for tile [{row},{col}]");
+
+                    // Animate chain breaking - scale up and fade out
+                    SpriteRenderer chainSr = chainOverlay.GetComponent<SpriteRenderer>();
+
+                    if (chainSr != null)
+                    {
+                        // Scale up with punch effect
+                        chainOverlay.DOScale(Vector3.one * 1.5f, 0.3f)
+                            .SetEase(Ease.OutBack);
+
+                        // Fade out
+                        chainSr.DOFade(0f, 0.3f)
+                            .OnComplete(() =>
+                            {
+                                Destroy(chainOverlay.gameObject);
+                                Debug.Log($"Chain overlay removed from tile [{row},{col}]");
+                            });
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning($"No chain overlay found on tile [{row},{col}]");
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"Tile [{row},{col}] not found in tileObjects");
+            }
         }
     }
 }

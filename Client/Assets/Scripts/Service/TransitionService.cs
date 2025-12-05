@@ -5,7 +5,7 @@ namespace PuzzleParty.Service
     public class TransitionService : ITransitionService
     {
         private TransitionView view;
-        private float fadeDuration = 0.5f;
+        private float fadeDuration = 0.25f;
 
         public TransitionService()
         {

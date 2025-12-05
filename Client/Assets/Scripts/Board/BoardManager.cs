@@ -45,6 +45,15 @@ namespace PuzzleParty.Board
                     BoardTile tile = new BoardTile();
                     tile.Column = j;
                     tile.Row = i;
+
+                    // Check if this tile should be locked
+                    tile.IsLocked = level.LockedTiles.Contains((i, j));
+
+                    if (tile.IsLocked)
+                    {
+                        Debug.Log($"Tile [{i},{j}] is marked as LOCKED");
+                    }
+
                     col[j] = tile;
                     debug.Append("[" + i + ":" + j + "]");
                 }
@@ -96,9 +105,11 @@ namespace PuzzleParty.Board
             }
 
             // Try scrambling until we have less than 2 tiles in correct positions
-            int maxAttempts = 10;
+            int maxAttempts = 20;
             int attempt = 0;
             System.Random rnd = new System.Random();
+            BoardTile[][] bestBoard = null;
+            int lowestCorrectTiles = int.MaxValue;
 
             while (attempt < maxAttempts)
             {
@@ -109,6 +120,9 @@ namespace PuzzleParty.Board
                 int scrambleMoves = CalculateScrambleMoves();
 
                 Debug.Log($"Scrambling attempt {attempt + 1} with {scrambleMoves} random moves");
+
+                // Track last move to avoid immediate reversal
+                (int row, int col, MoveDirection direction)? lastMove = null;
 
                 for (int moveCount = 0; moveCount < scrambleMoves; moveCount++)
                 {
@@ -156,6 +170,16 @@ namespace PuzzleParty.Board
                         }
                     }
 
+                    // Filter out moves that would reverse the last move
+                    if (lastMove.HasValue)
+                    {
+                        MoveDirection oppositeDirection = GetOppositeDirection(lastMove.Value.direction);
+                        possibleMoves.RemoveAll(m =>
+                            m.row == lastMove.Value.row &&
+                            m.col == lastMove.Value.col &&
+                            m.direction == oppositeDirection);
+                    }
+
                     // Pick a random valid move
                     if (possibleMoves.Count > 0)
                     {
@@ -187,12 +211,22 @@ namespace PuzzleParty.Board
                         // Swap tile with hole
                         board[newRow][newCol] = tileToMove;
                         board[move.row][move.col] = null;
+
+                        // Remember this move
+                        lastMove = move;
                     }
                 }
 
                 // Check how many tiles are in correct positions
                 int correctTiles = GetCorrectlyPlacedTilesCount();
                 Debug.Log($"After scrambling: {correctTiles} tiles in correct position");
+
+                // Track the best (fewest correct tiles) attempt
+                if (correctTiles < lowestCorrectTiles)
+                {
+                    lowestCorrectTiles = correctTiles;
+                    bestBoard = CloneBoard(board);
+                }
 
                 if (correctTiles < 2)
                 {
@@ -206,9 +240,11 @@ namespace PuzzleParty.Board
                 attempt++;
             }
 
-            if (attempt >= maxAttempts)
+            // Use the best scramble we found
+            if (attempt >= maxAttempts && bestBoard != null)
             {
-                Debug.LogWarning($"Could not achieve scramble with less than 2 correct tiles after {maxAttempts} attempts. Using best attempt.");
+                Debug.LogWarning($"Could not achieve scramble with less than 2 correct tiles after {maxAttempts} attempts. Using best attempt with {lowestCorrectTiles} correct tiles.");
+                board = bestBoard;
             }
         }
 
@@ -225,6 +261,23 @@ namespace PuzzleParty.Board
 
             System.Random rnd = new System.Random();
             return rnd.Next(minMoves, maxMoves + 1);
+        }
+
+        private MoveDirection GetOppositeDirection(MoveDirection direction)
+        {
+            switch (direction)
+            {
+                case MoveDirection.UP:
+                    return MoveDirection.DOWN;
+                case MoveDirection.DOWN:
+                    return MoveDirection.UP;
+                case MoveDirection.LEFT:
+                    return MoveDirection.RIGHT;
+                case MoveDirection.RIGHT:
+                    return MoveDirection.LEFT;
+                default:
+                    return direction;
+            }
         }
 
         private void PrintBoardSetup()
@@ -298,7 +351,8 @@ namespace PuzzleParty.Board
                         clone[i][j] = new BoardTile
                         {
                             Row = original[i][j].Row,
-                            Column = original[i][j].Column
+                            Column = original[i][j].Column,
+                            IsLocked = original[i][j].IsLocked
                         };
                     }
                 }
@@ -308,6 +362,13 @@ namespace PuzzleParty.Board
 
         public bool CanMoveTile(BoardTile tile, MoveDirection direction)
         {
+            // Check if tile is locked
+            if (tile.IsLocked)
+            {
+                Debug.Log($"Tile [{tile.Row},{tile.Column}] is locked and cannot be moved");
+                return false;
+            }
+
             // Find tile's current position in board
             int currentRow = -1, currentCol = -1;
 
@@ -454,6 +515,41 @@ namespace PuzzleParty.Board
             }
 
             return count;
+        }
+
+        /// <summary>
+        /// Check locked tiles and unlock any when 4 tiles are in correct positions
+        /// Returns list of tiles that were unlocked
+        /// </summary>
+        public List<(int row, int col)> CheckAndUnlockTiles()
+        {
+            List<(int row, int col)> unlockedTiles = new List<(int row, int col)>();
+
+            // Count how many tiles are in correct positions
+            int correctTilesCount = GetCorrectlyPlacedTilesCount();
+
+            Debug.Log($"CheckAndUnlockTiles: {correctTilesCount} tiles are correctly placed");
+
+            // If 4 or more tiles are correct, unlock all locked tiles
+            if (correctTilesCount >= 4)
+            {
+                for (int i = 0; i < board.Length; i++)
+                {
+                    for (int j = 0; j < board[i].Length; j++)
+                    {
+                        BoardTile tile = board[i][j];
+
+                        if (tile != null && tile.IsLocked)
+                        {
+                            tile.IsLocked = false;
+                            unlockedTiles.Add((i, j));
+                            Debug.Log($"Unlocked tile at [{i},{j}] (4+ tiles are correct)");
+                        }
+                    }
+                }
+            }
+
+            return unlockedTiles;
         }
     }
 }

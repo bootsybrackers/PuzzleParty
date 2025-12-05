@@ -434,6 +434,8 @@
 "Assets/Scripts/Service/TransitionService.cs"
 "Assets/Scripts/Service/TransitionView.cs"
 "Assets/Scripts/SplashController.cs"
+"Assets/Scripts/UI/LevelMarkerView.cs"
+"Assets/Scripts/UI/MainMenuView.cs"
 -langversion:9.0
 /deterministic
 /optimize+

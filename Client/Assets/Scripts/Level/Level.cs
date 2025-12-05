@@ -16,5 +16,7 @@ namespace PuzzleParty.Levels
         public Sprite LevelSprite {get;set;}
 
         public string Name {get;set;}
+
+        public List<(int row, int column)> LockedTiles {get;set;} = new List<(int row, int column)>();
     }
 }

@@ -1,5 +1,12 @@
 namespace PuzzleParty.Levels
 {
+    [System.Serializable]
+    public class LockedTile
+    {
+        public int row;
+        public int column;
+    }
+
     public class LevelConf
     {
         public int id;
@@ -9,5 +16,6 @@ namespace PuzzleParty.Levels
         public int moves;
         public int holes;
         public string name;
+        public LockedTile[] locked_tiles;
     }
 }

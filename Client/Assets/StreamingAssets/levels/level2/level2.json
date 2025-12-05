@@ -4,6 +4,9 @@
     "moves": "100",
     "holes": "2",
     "columns": "3",
-    "rows": "5"
+    "rows": "5",
+    "locked_tiles": [
+      {"row": 1, "column": 1}
+    ]
 
 }

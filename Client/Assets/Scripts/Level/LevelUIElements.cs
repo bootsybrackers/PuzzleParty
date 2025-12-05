@@ -16,6 +16,9 @@ namespace PuzzleParty.Levels
         public Button restartButton;
         public Button nextLevelButton;
 
+        [Header("Power-Ups")]
+        public Button completePuzzleButton;
+
         // Add more UI elements here as needed in the future
         // public TextMeshProUGUI scoreText;
         // public GameObject pauseButton;

@@ -6,11 +6,23 @@ namespace PuzzleParty.Progressions
 {
     public class ProgressionService : IProgressionService
     {
+        // Set to true to reset progression every time the game starts (development only)
+        private const bool RESET_PROGRESSION_ON_STARTUP = true;
+        private static bool hasResetThisSession = false;
 
         private static string SavePath => Path.Combine(Application.persistentDataPath, "progression.json");
         public Progression GetProgression()
     {
         Debug.Log($"Loading progression from: {SavePath}");
+
+        // Reset progression on startup if enabled (development only)
+        // Only reset once per application session, not every scene load
+        if (RESET_PROGRESSION_ON_STARTUP && !hasResetThisSession && File.Exists(SavePath))
+        {
+            Debug.LogWarning("RESET_PROGRESSION_ON_STARTUP is enabled - deleting progression file");
+            File.Delete(SavePath);
+            hasResetThisSession = true;
+        }
 
         if (!File.Exists(SavePath)) //no progression found. Create a new progression
         {
