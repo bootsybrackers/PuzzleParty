@@ -16,6 +16,7 @@ namespace PuzzleParty.Board
         private Dictionary<string, GameObject> tileObjects = new Dictionary<string, GameObject>();
         private Level level;
         private LevelUIElements uiElements;
+        private int currentStreak; // Current streak count for powerup display
 
         // Dynamic tile sizing
         private int tilePixelWidth;
@@ -38,10 +39,11 @@ namespace PuzzleParty.Board
 
         }
 
-        public void Setup(Level level, BoardTile[][] initialBoard, LevelUIElements uiElements)
+        public void Setup(Level level, BoardTile[][] initialBoard, LevelUIElements uiElements, int currentStreak)
         {
             this.level = level;
             this.uiElements = uiElements;
+            this.currentStreak = currentStreak;
 
             int cols = level.Columns;
             int rows = level.Rows;
@@ -97,72 +99,213 @@ namespace PuzzleParty.Board
 
         private IEnumerator ShowCompletePuzzle(System.Action onComplete)
         {
-            // Set board to 80% scale at the start
-            Vector3 originalScale = this.transform.localScale;
-            this.transform.localScale = originalScale * 0.8f;
+            // Board stays at full scale from the start - no scaling animation
 
-            // Prepare welcome text and wait one frame to ensure changes are applied
-            if (uiElements?.welcomeText != null)
+            // Prepare banner and wait one frame to ensure changes are applied
+            if (uiElements?.levelBanner != null)
             {
-                uiElements.welcomeText.text = $"{level.Name}";
+                // Set level name on banner
+                if (uiElements?.levelBannerText != null)
+                {
+                    uiElements.levelBannerText.text = $"{level.Name}";
+                }
 
-                // Set initial alpha to 0
-                Color textColor = uiElements.welcomeText.color;
-                textColor.a = 0f;
-                uiElements.welcomeText.color = textColor;
+                // Set initial alpha to 0 for fade-in effect
+                CanvasGroup canvasGroup = uiElements.levelBanner.GetComponent<CanvasGroup>();
+                if (canvasGroup != null)
+                {
+                    canvasGroup.alpha = 0f;
+                }
 
                 // Get RectTransform and store original position
-                RectTransform rectTransform = uiElements.welcomeText.rectTransform;
-                Vector2 originalAnchoredPos = rectTransform.anchoredPosition;
+                RectTransform rectTransform = uiElements.levelBanner.GetComponent<RectTransform>();
+                if (rectTransform != null)
+                {
+                    Vector2 originalAnchoredPos = rectTransform.anchoredPosition;
 
-                // Position text off-screen to the left (500 pixels)
-                Vector2 textStartAnchoredPos = originalAnchoredPos;
-                textStartAnchoredPos.x -= 500f;
-                rectTransform.anchoredPosition = textStartAnchoredPos;
+                    // Position banner off-screen to the left (1200 pixels to ensure fully off-screen)
+                    Vector2 bannerStartAnchoredPos = originalAnchoredPos;
+                    bannerStartAnchoredPos.x -= 1200f;
+                    rectTransform.anchoredPosition = bannerStartAnchoredPos;
 
-                // Wait one frame for changes to take effect
-                yield return null;
+                    // Wait one frame for changes to take effect
+                    yield return null;
+                }
             }
 
-            // Step 1: Slide in and fade in welcome text
-            if (uiElements?.welcomeText != null)
+            // Step 1: Slide in banner from left
+            if (uiElements?.levelBanner != null)
             {
-                // Get RectTransform for UI element (TextMeshProUGUI always has RectTransform)
-                RectTransform rectTransform = uiElements.welcomeText.rectTransform;
+                RectTransform rectTransform = uiElements.levelBanner.GetComponent<RectTransform>();
+                CanvasGroup canvasGroup = uiElements.levelBanner.GetComponent<CanvasGroup>();
 
-                // Calculate the target position (current position is already off-screen)
-                Vector2 targetAnchoredPos = rectTransform.anchoredPosition;
-                targetAnchoredPos.x += 500f; // Move back to original position
+                // Ensure banner is fully visible (no fade)
+                if (canvasGroup != null)
+                {
+                    canvasGroup.alpha = 1f;
+                }
 
-                // Slide in and fade in the text with bouncy feel
-                DG.Tweening.Sequence textSequence = DOTween.Sequence();
-                textSequence.Append(rectTransform.DOAnchorPos(targetAnchoredPos, 0.5f).SetEase(Ease.OutBack));
-                textSequence.Join(DOTween.ToAlpha(() => uiElements.welcomeText.color, x => uiElements.welcomeText.color = x, 1f, 0.5f));
+                if (rectTransform != null)
+                {
+                    // Calculate the target position (slide back to original position)
+                    Vector2 targetAnchoredPos = rectTransform.anchoredPosition;
+                    targetAnchoredPos.x += 1200f; // Move from left to original position
+
+                    // Slide in the banner with smooth easing
+                    rectTransform.DOAnchorPos(targetAnchoredPos, 0.6f).SetEase(Ease.OutBack);
+                }
             }
 
-            // Wait for text slide-in to complete
-            yield return new WaitForSeconds(0.5f);
-
-            // Keep text visible for a moment
-            yield return new WaitForSeconds(1f);
-
-            // Step 2: Fade out welcome text AND scale board at the same time
-            if (uiElements?.welcomeText != null)
-            {
-                DOTween.ToAlpha(() => uiElements.welcomeText.color, x => uiElements.welcomeText.color = x, 0f, 0.5f);
-            }
-
-            // Start board scaling at the same time
-            this.transform.DOScale(originalScale, 0.6f).SetEase(Ease.OutBack, 2f);
-
-            // Wait for board scaling to complete (longer duration)
+            // Wait for banner slide-in to complete
             yield return new WaitForSeconds(0.6f);
 
-            // Long pause before scrambling
+            // Show streak icons with staggered animation
+            if (uiElements?.streakIcons != null && uiElements.streakIcons.Length == 3)
+            {
+                Color greyedOutColor = new Color(0.5f, 0.5f, 0.5f, 1f); // Desaturated grey for inactive
+                Color activeColor = Color.white; // Full color for active
+
+                for (int i = 0; i < 3; i++)
+                {
+                    GameObject icon = uiElements.streakIcons[i];
+                    if (icon != null)
+                    {
+                        // Tint icon based on active/passive state
+                        Image img = icon.GetComponent<Image>();
+                        if (img != null)
+                        {
+                            img.color = (i < currentStreak) ? activeColor : greyedOutColor;
+                        }
+
+                        // Ensure CanvasGroup exists for fade animation
+                        CanvasGroup iconCanvasGroup = icon.GetComponent<CanvasGroup>();
+                        if (iconCanvasGroup == null)
+                        {
+                            iconCanvasGroup = icon.AddComponent<CanvasGroup>();
+                        }
+
+                        // Animate icon appearing (scale + fade)
+                        icon.transform.localScale = Vector3.zero;
+                        iconCanvasGroup.alpha = 0f;
+
+                        icon.transform.DOScale(1f, 0.3f).SetEase(Ease.OutBack).SetDelay(i * 0.15f);
+                        iconCanvasGroup.DOFade(1f, 0.3f).SetDelay(i * 0.15f);
+                    }
+                }
+
+                // Wait for all icons to appear
+                yield return new WaitForSeconds(0.6f);
+            }
+
+            // Keep banner visible for a moment
+            yield return new WaitForSeconds(1f);
+
+            // Animate powerup unlocks (icon to button/text effects)
+            if (currentStreak >= 1 && uiElements.streakIcons != null && uiElements.streakIcons.Length > 0)
+            {
+                // Painting unlock animation (streak >= 1)
+                if (uiElements.completePuzzleButton != null)
+                {
+                    yield return StartCoroutine(AnimateIconToTarget(uiElements.streakIcons[0], uiElements.completePuzzleButton.transform));
+                }
+            }
+
+            if (currentStreak >= 3 && uiElements.streakIcons != null && uiElements.streakIcons.Length > 2)
+            {
+                // Slot unlock animation (streak >= 3)
+                if (uiElements.slotButton != null)
+                {
+                    yield return StartCoroutine(AnimateIconToTarget(uiElements.streakIcons[2], uiElements.slotButton.transform));
+                }
+            }
+
+            if (currentStreak >= 2 && uiElements.streakIcons != null && uiElements.streakIcons.Length > 1)
+            {
+                // Moves bonus animation (streak >= 2)
+                if (uiElements.movesText != null)
+                {
+                    yield return StartCoroutine(AnimateIconToTarget(uiElements.streakIcons[1], uiElements.movesText.transform));
+                }
+            }
+
+            // Step 2: Slide out banner to the left
+            if (uiElements?.levelBanner != null)
+            {
+                RectTransform rectTransform = uiElements.levelBanner.GetComponent<RectTransform>();
+
+                if (rectTransform != null)
+                {
+                    Vector2 exitPos = rectTransform.anchoredPosition;
+                    exitPos.x -= 1200f; // Slide back out to the left (fully off-screen)
+
+                    rectTransform.DOAnchorPos(exitPos, 0.5f).SetEase(Ease.InBack);
+                }
+            }
+
+            // Wait for banner exit animation to complete
             yield return new WaitForSeconds(0.5f);
+
+            // Brief pause before scrambling
+            yield return new WaitForSeconds(0.3f);
 
             // Signal that we're ready to scramble
             onComplete?.Invoke();
+        }
+
+        private IEnumerator AnimateIconToTarget(GameObject sourceIcon, Transform target)
+        {
+            if (sourceIcon == null || target == null)
+            {
+                yield break;
+            }
+
+            // Create temporary icon clone for animation
+            GameObject temp = new GameObject("TempStreakIcon");
+            Image tempImg = temp.AddComponent<Image>();
+
+            // Copy the sprite from source icon
+            Image sourceImg = sourceIcon.GetComponent<Image>();
+            if (sourceImg != null)
+            {
+                tempImg.sprite = sourceImg.sprite;
+                tempImg.color = sourceImg.color;
+            }
+
+            RectTransform tempRect = temp.GetComponent<RectTransform>();
+
+            // Get the canvas to parent the temp icon to
+            Canvas canvas = uiElements.levelBanner.GetComponentInParent<Canvas>();
+            if (canvas != null)
+            {
+                tempRect.SetParent(canvas.transform, false);
+            }
+            else
+            {
+                tempRect.SetParent(uiElements.levelBanner.transform.parent, false);
+            }
+
+            // Set initial position and size
+            RectTransform sourceRect = sourceIcon.GetComponent<RectTransform>();
+            if (sourceRect != null)
+            {
+                tempRect.position = sourceRect.position;
+                tempRect.sizeDelta = sourceRect.sizeDelta;
+            }
+
+            // Animate to target position
+            tempRect.DOMove(target.position, 0.8f).SetEase(Ease.InOutQuad);
+            tempRect.DOScale(1.2f, 0.4f).SetLoops(2, LoopType.Yoyo);
+
+            yield return new WaitForSeconds(0.8f);
+
+            // Pulse target
+            if (target.GetComponent<RectTransform>() != null)
+            {
+                target.DOScale(1.2f, 0.2f).SetLoops(2, LoopType.Yoyo);
+            }
+
+            Destroy(temp);
+            yield return new WaitForSeconds(0.4f);
         }
 
         public void AnimateScramble(BoardTile[][] scrambledBoard, System.Action onComplete)
@@ -622,28 +765,23 @@ namespace PuzzleParty.Board
             }
 
             // Show overlay with animation
-            Debug.Log($"Setting gameEndOverlay active. Current state: {uiElements.gameEndOverlay.activeSelf}");
             uiElements.gameEndOverlay.SetActive(true);
-            Debug.Log($"After SetActive. New state: {uiElements.gameEndOverlay.activeSelf}");
 
             // Get the Image component to fade it in
             UnityEngine.UI.Image overlayImage = uiElements.gameEndOverlay.GetComponent<UnityEngine.UI.Image>();
-            Debug.Log($"overlayImage is null: {overlayImage == null}");
             if (overlayImage != null)
             {
                 Color imageColor = overlayImage.color;
-                Debug.Log($"Original image color: {imageColor}");
                 imageColor.a = 0f;
                 overlayImage.color = imageColor;
-                Debug.Log($"Set image alpha to 0, starting fade to 1");
-                overlayImage.DOFade(1f, 0.5f).SetEase(Ease.OutQuad);
+                overlayImage.DOFade(0.9f, 0.6f).SetEase(Ease.OutQuad);
             }
 
-            // Scale up animation
-            Debug.Log($"Current scale: {uiElements.gameEndOverlay.transform.localScale}");
+            // Start with scale 0 and animate up with a slight delay for smoother feel
             uiElements.gameEndOverlay.transform.localScale = Vector3.zero;
-            uiElements.gameEndOverlay.transform.DOScale(Vector3.one, 0.5f).SetEase(Ease.OutBack);
-            Debug.Log("Overlay animation setup complete");
+            uiElements.gameEndOverlay.transform.DOScale(Vector3.one, 0.6f)
+                .SetEase(Ease.OutBack)
+                .SetDelay(0.2f);  // Small delay before scaling up
         }
 
         private IEnumerator AnimateCoinCounter(int coinsEarned)

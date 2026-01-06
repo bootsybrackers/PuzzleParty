@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using TMPro;
 using DG.Tweening;
 using System.Collections;
+using System.Collections.Generic;
 
 namespace PuzzleParty.UI
 {
@@ -20,6 +21,9 @@ namespace PuzzleParty.UI
 
         [SerializeField]
         private Transform levelMarkersContainer;
+
+        [SerializeField]
+        private TextMeshProUGUI mapNameText;
 
         [Header("Level Marker Prefab")]
         [SerializeField]
@@ -44,6 +48,17 @@ namespace PuzzleParty.UI
             {
                 atlasContainer.localScale = Vector3.zero;
             }
+
+            // Hide map name text initially
+            if (mapNameText != null)
+            {
+                CanvasGroup canvasGroup = mapNameText.GetComponent<CanvasGroup>();
+                if (canvasGroup == null)
+                {
+                    canvasGroup = mapNameText.gameObject.AddComponent<CanvasGroup>();
+                }
+                canvasGroup.alpha = 0f;
+            }
         }
 
         /// <summary>
@@ -67,6 +82,19 @@ namespace PuzzleParty.UI
                     // After atlas opens, animate level markers
                     StartCoroutine(AnimateLevelMarkersIn(onComplete));
                 });
+
+            // Animate map name text fading in at the same time
+            if (mapNameText != null)
+            {
+                CanvasGroup canvasGroup = mapNameText.GetComponent<CanvasGroup>();
+                if (canvasGroup == null)
+                {
+                    canvasGroup = mapNameText.gameObject.AddComponent<CanvasGroup>();
+                }
+
+                canvasGroup.DOFade(1f, openDuration)
+                    .SetEase(Ease.InOutQuad);
+            }
         }
 
         /// <summary>
@@ -139,6 +167,17 @@ namespace PuzzleParty.UI
         }
 
         /// <summary>
+        /// Sets the map name text
+        /// </summary>
+        public void SetMapName(string mapName)
+        {
+            if (mapNameText != null)
+            {
+                mapNameText.text = mapName;
+            }
+        }
+
+        /// <summary>
         /// Clears all level markers (for when switching maps)
         /// </summary>
         public void ClearLevelMarkers()
@@ -156,38 +195,18 @@ namespace PuzzleParty.UI
         /// </summary>
         public void AddLevelMarker(int levelId, string levelName, bool isCompleted)
         {
-            Debug.Log($"MainMenuView.AddLevelMarker - Level: {levelId}, Name: {levelName}");
-            Debug.Log($"  levelMarkersContainer is null: {levelMarkersContainer == null}");
-            Debug.Log($"  levelMarkerPrefab is null: {levelMarkerPrefab == null}");
-
-            if (levelMarkersContainer == null)
+            if (levelMarkersContainer == null || levelMarkerPrefab == null)
             {
-                Debug.LogError("levelMarkersContainer is NULL! Please assign it in the Inspector.");
-                return;
-            }
-
-            if (levelMarkerPrefab == null)
-            {
-                Debug.LogError("levelMarkerPrefab is NULL! Please assign it in the Inspector.");
+                Debug.LogError("levelMarkersContainer or levelMarkerPrefab is NULL!");
                 return;
             }
 
             GameObject markerObj = Instantiate(levelMarkerPrefab, levelMarkersContainer);
-            Debug.Log($"  Instantiated marker object: {markerObj.name}");
-            Debug.Log($"  Marker parent: {markerObj.transform.parent.name}");
-            Debug.Log($"  Marker position: {markerObj.transform.localPosition}");
-            Debug.Log($"  Marker RectTransform: {markerObj.GetComponent<RectTransform>() != null}");
-
             LevelMarkerView markerView = markerObj.GetComponent<LevelMarkerView>();
-            Debug.Log($"  markerView is null: {markerView == null}");
 
             if (markerView != null)
             {
                 markerView.Setup(levelId, levelName, isCompleted);
-            }
-            else
-            {
-                Debug.LogError($"  LevelMarkerView component not found on prefab!");
             }
         }
     }

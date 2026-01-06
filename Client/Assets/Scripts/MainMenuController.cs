@@ -26,9 +26,6 @@ namespace PuzzleParty.UI
     private TextMeshProUGUI titleText;
 
     [SerializeField]
-    private TextMeshProUGUI mapNameText;
-
-    [SerializeField]
     private TextMeshProUGUI mapProgressText;
 
     [SerializeField]
@@ -138,25 +135,26 @@ namespace PuzzleParty.UI
         // Display coins
         if (coinsText != null)
         {
-            coinsText.text = $"Coins: {progression.coins}";
+            coinsText.text = $"{progression.coins}";
         }
 
         // Get and display current map info
         Map currentMap = mapService.GetCurrentMap(progression.lastBeatenLevel);
         if (currentMap != null)
         {
-            if (mapNameText != null)
+            // Set map name through the view so it can be animated
+            if (mainMenuView != null)
             {
-                mapNameText.text = currentMap.name;
+                mainMenuView.SetMapName(currentMap.name);
             }
 
             if (mapProgressText != null)
             {
-                int levelsCompleted = currentMap.GetLevelProgress(progression.lastBeatenLevel);
-                int totalLevels = currentMap.TotalLevels;
-                mapProgressText.text = $"Level {levelsCompleted}/{totalLevels}";
+                int currentMapNumber = currentMap.id;
+                int totalMaps = mapService.GetAllMaps().Length;
+                mapProgressText.text = $"{currentMapNumber}/{totalMaps}";
 
-                Debug.Log($"Current map: {currentMap.name} - Progress: {levelsCompleted}/{totalLevels}");
+                Debug.Log($"Current map: {currentMap.name} - Map {currentMapNumber}/{totalMaps}");
             }
         }
         else
@@ -211,21 +209,30 @@ namespace PuzzleParty.UI
         Progression progression = progressionService.GetProgression();
         Debug.Log($"AnimateNewLevelCompletion - lastBeatenLevel: {progression.lastBeatenLevel}, coins: {progression.coins}");
 
-        Map currentMap = mapService.GetCurrentMap(progression.lastBeatenLevel);
+        // Get the map that contains the just-completed level
+        Map completedLevelMap = mapService.GetCurrentMap(progression.lastBeatenLevel);
 
-        if (currentMap == null)
+        if (completedLevelMap == null)
         {
-            Debug.LogWarning("currentMap is null in AnimateNewLevelCompletion");
+            Debug.LogWarning("completedLevelMap is null in AnimateNewLevelCompletion");
             return;
         }
 
-        // Calculate the index of the just-completed level within the current map
-        int completedLevelIndex = progression.lastBeatenLevel - currentMap.startLevel;
+        // Calculate the index of the just-completed level within that map
+        int completedLevelIndex = progression.lastBeatenLevel - completedLevelMap.startLevel;
 
-        Debug.Log($"Animating completion of level {progression.lastBeatenLevel} (index {completedLevelIndex} in map {currentMap.name})");
+        Debug.Log($"Animating completion of level {progression.lastBeatenLevel} (index {completedLevelIndex} in map {completedLevelMap.name})");
+        Debug.Log($"Map range: {completedLevelMap.startLevel}-{completedLevelMap.endLevel}");
 
-        // Animate the newly completed level marker
-        mainMenuView.AnimateNewLevelCompletion(completedLevelIndex);
+        // Only animate if the index is valid
+        if (completedLevelIndex >= 0 && completedLevelIndex < completedLevelMap.TotalLevels)
+        {
+            mainMenuView.AnimateNewLevelCompletion(completedLevelIndex);
+        }
+        else
+        {
+            Debug.LogWarning($"Completed level index {completedLevelIndex} is out of bounds for map {completedLevelMap.name} (0-{completedLevelMap.TotalLevels - 1})");
+        }
     }
 
     private void StartPlayButtonPulseAnimation()

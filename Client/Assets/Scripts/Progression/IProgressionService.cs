@@ -4,7 +4,8 @@ namespace PuzzleParty.Progressions
     {
         Progression GetProgression();
         void SaveProgression(Progression progression);
-
+        void IncrementStreak();
+        void ResetStreak();
         void WipeProgression();
     }
 }

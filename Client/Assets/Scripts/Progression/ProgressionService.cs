@@ -46,12 +46,29 @@ namespace PuzzleParty.Progressions
         Debug.Log("Progression saved successfully");
     }
 
+    public void IncrementStreak()
+    {
+        Progression progression = GetProgression();
+        progression.streak = Mathf.Min(progression.streak + 1, 3); // Cap at 3
+        Debug.Log($"Streak incremented to: {progression.streak}");
+        SaveProgression(progression);
+    }
+
+    public void ResetStreak()
+    {
+        Progression progression = GetProgression();
+        progression.streak = 0;
+        Debug.Log("Streak reset to 0");
+        SaveProgression(progression);
+    }
+
     public void WipeProgression()
     {
         //For dev purposes only
         Progression p = GetProgression();
         p.lastBeatenLevel = 0;
         p.coins = 0;
+        p.streak = 0;
 
         SaveProgression(p);
     }
@@ -61,6 +78,7 @@ namespace PuzzleParty.Progressions
         Progression prog = new Progression();
         prog.lastBeatenLevel = 0;
         prog.coins = 0;
+        prog.streak = 0;
         SaveProgression(prog);
         return prog;
 

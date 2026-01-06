@@ -201,8 +201,13 @@ namespace PuzzleParty.Board
             boardManager = new BoardManager(currentLevel);
             boardManager.Init();
 
+            // Get current streak from progression
+            Progression progression = progressionService.GetProgression();
+            int currentStreak = progression.streak;
+            Debug.Log($"Current streak: {currentStreak}");
+
             boardView = GetComponent<BoardView>();
-            boardView.Setup(currentLevel, boardManager.GetInitialBoard(), uiElements);
+            boardView.Setup(currentLevel, boardManager.GetInitialBoard(), uiElements, currentStreak);
 
             // Initialize moves display
             boardView.UpdateMovesDisplay(boardManager.MovesLeft);
@@ -218,6 +223,24 @@ namespace PuzzleParty.Board
             // Reset power-up usage for this level
             hasUsedCompletePuzzle = false;
             SetupPowerUpButton();
+
+            // Enable powerup buttons based on streak
+            if (uiElements.completePuzzleButton != null)
+            {
+                uiElements.completePuzzleButton.gameObject.SetActive(currentStreak >= 1);
+            }
+            if (uiElements.slotButton != null)
+            {
+                uiElements.slotButton.gameObject.SetActive(currentStreak >= 3);
+            }
+
+            // Apply moves bonus if streak >= 2
+            if (currentStreak >= 2)
+            {
+                boardManager.AddMoves(20);
+                boardView.UpdateMovesDisplay(boardManager.MovesLeft);
+                Debug.Log("Streak bonus: Added 20 moves!");
+            }
 
             // Start the animation sequence with welcome text and scaling
             boardView.StartAnimation(() => {
@@ -302,6 +325,9 @@ namespace PuzzleParty.Board
 
             progressionService.SaveProgression(progression);
 
+            // Increment streak on win
+            progressionService.IncrementStreak();
+
             Debug.Log($"Earned {coinsEarned} coins! Total coins: {progression.coins}");
             Debug.Log($"About to show overlay. boardView is null: {boardView == null}");
 
@@ -324,6 +350,9 @@ namespace PuzzleParty.Board
 
             Debug.Log("Out of moves! Game Over!");
 
+            // Reset streak on failure
+            progressionService.ResetStreak();
+
             // Show failure overlay
             boardView.ShowGameEndOverlay(
                 success: false,
@@ -336,6 +365,9 @@ namespace PuzzleParty.Board
         void RestartLevel()
         {
             Debug.Log("Restarting level...");
+
+            // Reset streak on manual restart
+            progressionService.ResetStreak();
 
             // Clear all existing tile objects
             boardView.HideGameEndOverlay();

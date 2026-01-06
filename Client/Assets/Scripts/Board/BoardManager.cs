@@ -28,6 +28,13 @@ namespace PuzzleParty.Board
         public int TotalMoves => totalMoves;
         public bool IsSolved => CheckIfSolved();
 
+        public void AddMoves(int amount)
+        {
+            movesLeft += amount;
+            totalMoves += amount;
+            Debug.Log($"Added {amount} moves. Moves left: {movesLeft}, Total moves: {totalMoves}");
+        }
+
         public void Init()
         {
             int cols = level.Columns;
