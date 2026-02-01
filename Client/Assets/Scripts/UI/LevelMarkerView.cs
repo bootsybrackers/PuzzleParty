@@ -50,21 +50,15 @@ namespace PuzzleParty.UI
             this.levelId = levelId;
             this.isCompleted = isCompleted;
 
-            Debug.Log($"LevelMarkerView.Setup - LevelId: {levelId}, Name: {levelName}, Completed: {isCompleted}");
-            Debug.Log($"  levelNameText is null: {levelNameText == null}");
-            Debug.Log($"  iconImage is null: {iconImage == null}");
-
             if (levelNameText != null)
             {
                 levelNameText.enabled = true; // Ensure text component is enabled
                 levelNameText.text = levelName;
-                Debug.Log($"  Set text to: {levelNameText.text}");
-                Debug.Log($"  Text GameObject active: {levelNameText.gameObject.activeInHierarchy}");
-                Debug.Log($"  Text enabled: {levelNameText.enabled}");
+                Debug.Log($"LevelMarkerView.Setup - Set text to: {levelName}");
             }
             else
             {
-                Debug.LogWarning($"  levelNameText is NULL for level {levelId}!");
+                Debug.LogWarning($"levelNameText is NULL for level {levelId}!");
             }
 
             UpdateVisuals();

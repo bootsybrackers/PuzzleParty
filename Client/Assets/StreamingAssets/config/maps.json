@@ -2,23 +2,23 @@
   "maps": [
     {
       "id": 1,
-      "name": "Legendary Euro Cities",
+      "name": "European Classics",
       "startLevel": 1,
-      "endLevel": 5,
+      "endLevel": 6,
       "theme": ""
     },
     {
       "id": 2,
-      "name": "North American Pearls",
-      "startLevel": 6,
-      "endLevel": 15,
+      "name": "American Pearls",
+      "startLevel": 7,
+      "endLevel": 12,
       "theme": ""
     },
     {
       "id": 3,
-      "name": "Mountain Peak",
-      "startLevel": 16,
-      "endLevel": 30,
+      "name": "South American Capitals",
+      "startLevel": 13,
+      "endLevel": 18,
       "theme": ""
     }
   ]
