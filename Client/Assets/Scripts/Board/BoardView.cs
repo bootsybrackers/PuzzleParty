@@ -18,6 +18,39 @@ namespace PuzzleParty.Board
         private LevelUIElements uiElements;
         private int currentStreak; // Current streak count for powerup display
 
+        // Sparkle trail settings (tweakable in Inspector)
+        [Header("Sparkle Trail")]
+        [SerializeField] private int sparkleCount = 12;
+        [SerializeField] private float sparkleDuration = 0.65f;
+        [SerializeField] private float sparkleStaggerTime = 0.2f;
+        [SerializeField] private Vector2 sparkleSize = new Vector2(28f, 44f);
+        [SerializeField] private float pathCurveStrength = 40f;
+        [SerializeField] private float pathXSpread = 15f;
+        [Tooltip("First sparkles are this much larger than last (comet head effect)")]
+        [SerializeField] private float headToTailRatio = 2.0f;
+
+        [Header("Sparkle Color")]
+        [SerializeField] private float sparkleHueMin = 0.08f;
+        [SerializeField] private float sparkleHueMax = 0.14f;
+        [SerializeField] private float sparkleSaturationMin = 0.5f;
+        [SerializeField] private float sparkleSaturationMax = 0.85f;
+
+        [Header("Sparkle Fade")]
+        [Range(0f, 1f)]
+        [SerializeField] private float sparkleFadeStart = 0.75f;
+        [Range(0f, 1f)]
+        [SerializeField] private float sparkleShrinkStart = 0.7f;
+
+        [Header("Impact Burst")]
+        [SerializeField] private int burstParticleCount = 10;
+        [SerializeField] private float burstSize = 22f;
+        [SerializeField] private Vector2 burstDistance = new Vector2(50f, 100f);
+        [SerializeField] private float burstDuration = 0.25f;
+
+        [Header("Target Pulse")]
+        [SerializeField] private float pulseScale = 1.2f;
+        [SerializeField] private float pulseDuration = 0.18f;
+
         // Dynamic tile sizing
         private int tilePixelWidth;
         private int tilePixelHeight;
@@ -133,6 +166,62 @@ namespace PuzzleParty.Board
                 }
             }
 
+            // Setup streak icons immediately (visible when banner slides in)
+            if (uiElements?.streakIcons != null && uiElements.streakIcons.Length == 3)
+            {
+                Sprite lockSprite = Resources.Load<Sprite>("Images/Icon_ImageIcon_lock_00");
+
+                for (int i = 0; i < 3; i++)
+                {
+                    GameObject icon = uiElements.streakIcons[i];
+                    if (icon != null)
+                    {
+                        // Show icon at full scale
+                        icon.transform.localScale = Vector3.one;
+
+                        // Tint icon based on active/passive state
+                        Image img = icon.GetComponent<Image>();
+                        if (img != null)
+                        {
+                            img.color = (i < currentStreak) ? Color.white : new Color(0.5f, 0.5f, 0.5f, 1f);
+                        }
+
+                        // Ensure CanvasGroup is fully visible
+                        CanvasGroup iconCanvasGroup = icon.GetComponent<CanvasGroup>();
+                        if (iconCanvasGroup == null)
+                        {
+                            iconCanvasGroup = icon.AddComponent<CanvasGroup>();
+                        }
+                        iconCanvasGroup.alpha = 1f;
+
+                        // Remove any existing lock overlay
+                        Transform existingLock = icon.transform.Find("LockOverlay");
+                        if (existingLock != null)
+                        {
+                            Destroy(existingLock.gameObject);
+                        }
+
+                        // Add lock overlay on inactive icons
+                        if (i >= currentStreak && lockSprite != null)
+                        {
+                            GameObject lockObj = new GameObject("LockOverlay");
+                            lockObj.transform.SetParent(icon.transform, false);
+
+                            Image lockImg = lockObj.AddComponent<Image>();
+                            lockImg.sprite = lockSprite;
+                            lockImg.raycastTarget = false;
+
+                            RectTransform lockRect = lockObj.GetComponent<RectTransform>();
+                            lockRect.anchorMin = new Vector2(1f, 0f);
+                            lockRect.anchorMax = new Vector2(1f, 0f);
+                            lockRect.pivot = new Vector2(1f, 0f);
+                            lockRect.anchoredPosition = Vector2.zero;
+                            lockRect.sizeDelta = new Vector2(40f, 40f);
+                        }
+                    }
+                }
+            }
+
             // Step 1: Slide in banner from left
             if (uiElements?.levelBanner != null)
             {
@@ -159,46 +248,8 @@ namespace PuzzleParty.Board
             // Wait for banner slide-in to complete
             yield return new WaitForSeconds(0.6f);
 
-            // Show streak icons with staggered animation
-            if (uiElements?.streakIcons != null && uiElements.streakIcons.Length == 3)
-            {
-                Color greyedOutColor = new Color(0.5f, 0.5f, 0.5f, 1f); // Desaturated grey for inactive
-                Color activeColor = Color.white; // Full color for active
-
-                for (int i = 0; i < 3; i++)
-                {
-                    GameObject icon = uiElements.streakIcons[i];
-                    if (icon != null)
-                    {
-                        // Tint icon based on active/passive state
-                        Image img = icon.GetComponent<Image>();
-                        if (img != null)
-                        {
-                            img.color = (i < currentStreak) ? activeColor : greyedOutColor;
-                        }
-
-                        // Ensure CanvasGroup exists for fade animation
-                        CanvasGroup iconCanvasGroup = icon.GetComponent<CanvasGroup>();
-                        if (iconCanvasGroup == null)
-                        {
-                            iconCanvasGroup = icon.AddComponent<CanvasGroup>();
-                        }
-
-                        // Animate icon appearing (scale + fade)
-                        icon.transform.localScale = Vector3.zero;
-                        iconCanvasGroup.alpha = 0f;
-
-                        icon.transform.DOScale(1f, 0.3f).SetEase(Ease.OutBack).SetDelay(i * 0.15f);
-                        iconCanvasGroup.DOFade(1f, 0.3f).SetDelay(i * 0.15f);
-                    }
-                }
-
-                // Wait for all icons to appear
-                yield return new WaitForSeconds(0.6f);
-            }
-
             // Keep banner visible for a moment
-            yield return new WaitForSeconds(1f);
+            yield return new WaitForSeconds(0.5f);
 
             // Animate powerup unlocks (icon to button/text effects)
             if (currentStreak >= 1 && uiElements.streakIcons != null && uiElements.streakIcons.Length > 0)
@@ -252,6 +303,44 @@ namespace PuzzleParty.Board
             onComplete?.Invoke();
         }
 
+        // Cached sparkle texture (procedurally generated once)
+        private static Texture2D _sparkleTexture;
+        private static Sprite _sparkleSprite;
+
+        private static Sprite GetSparkleSprite()
+        {
+            if (_sparkleSprite != null) return _sparkleSprite;
+
+            int size = 32;
+            _sparkleTexture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            float center = size / 2f;
+            float radius = size / 2f;
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dist = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
+                    float norm = Mathf.Clamp01(dist / radius);
+                    // Sharp bright core + soft outer glow
+                    float core = Mathf.Clamp01(1f - norm * 3f); // Bright center within ~33% radius
+                    float glow = (1f - norm) * (1f - norm); // Soft quadratic falloff
+                    float alpha = Mathf.Clamp01(core + glow);
+                    _sparkleTexture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                }
+            }
+            _sparkleTexture.Apply();
+
+            _sparkleSprite = Sprite.Create(
+                _sparkleTexture,
+                new Rect(0, 0, size, size),
+                new Vector2(0.5f, 0.5f),
+                100f
+            );
+
+            return _sparkleSprite;
+        }
+
         private IEnumerator AnimateIconToTarget(GameObject sourceIcon, Transform target)
         {
             if (sourceIcon == null || target == null)
@@ -259,53 +348,150 @@ namespace PuzzleParty.Board
                 yield break;
             }
 
-            // Create temporary icon clone for animation
-            GameObject temp = new GameObject("TempStreakIcon");
-            Image tempImg = temp.AddComponent<Image>();
-
-            // Copy the sprite from source icon
-            Image sourceImg = sourceIcon.GetComponent<Image>();
-            if (sourceImg != null)
-            {
-                tempImg.sprite = sourceImg.sprite;
-                tempImg.color = sourceImg.color;
-            }
-
-            RectTransform tempRect = temp.GetComponent<RectTransform>();
-
-            // Get the canvas to parent the temp icon to
+            // Get the canvas to parent sparkles to
             Canvas canvas = uiElements.levelBanner.GetComponentInParent<Canvas>();
-            if (canvas != null)
+            Transform sparkleParent = canvas != null ? canvas.transform : uiElements.levelBanner.transform.parent;
+
+            // Get source and target positions
+            RectTransform sourceRect = sourceIcon.GetComponent<RectTransform>();
+            Vector3 sourcePos = sourceRect != null ? sourceRect.position : sourceIcon.transform.position;
+
+            // Convert target position to the sparkle canvas coordinate space
+            // The target may be on a different canvas (Screen Space - Camera) than the sparkles (Screen Space - Overlay)
+            Vector3 targetPos;
+            Canvas targetCanvas = target.GetComponentInParent<Canvas>();
+            if (targetCanvas != null && targetCanvas.renderMode != RenderMode.ScreenSpaceOverlay && canvas.renderMode == RenderMode.ScreenSpaceOverlay)
             {
-                tempRect.SetParent(canvas.transform, false);
+                // Target is on a Camera canvas, sparkles are on Overlay — convert via screen point
+                Camera targetCam = targetCanvas.worldCamera ?? Camera.main;
+                Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(targetCam, target.position);
+                targetPos = new Vector3(screenPoint.x, screenPoint.y, 0f);
             }
             else
             {
-                tempRect.SetParent(uiElements.levelBanner.transform.parent, false);
+                targetPos = target.position;
             }
 
-            // Set initial position and size
-            RectTransform sourceRect = sourceIcon.GetComponent<RectTransform>();
-            if (sourceRect != null)
+            Sprite sparkleSprite = GetSparkleSprite();
+            List<GameObject> sparkles = new List<GameObject>();
+            float totalDuration = sparkleDuration;
+            float staggerInterval = sparkleStaggerTime / sparkleCount;
+
+            // Spawn sparkles with staggered start
+            for (int i = 0; i < sparkleCount; i++)
             {
-                tempRect.position = sourceRect.position;
-                tempRect.sizeDelta = sourceRect.sizeDelta;
+                GameObject sparkle = new GameObject($"Sparkle_{i}");
+                Image sparkleImg = sparkle.AddComponent<Image>();
+                sparkleImg.sprite = sparkleSprite;
+                sparkleImg.raycastTarget = false;
+
+                RectTransform sparkleRect = sparkle.GetComponent<RectTransform>();
+                sparkleRect.SetParent(sparkleParent, false);
+                sparkleRect.position = sourcePos;
+
+                // Size gradient: first sparkles (head) are larger, trailing ones shrink
+                float t01 = (float)i / Mathf.Max(1, sparkleCount - 1);
+                float sizeMultiplier = Mathf.Lerp(headToTailRatio, 1f, t01);
+                float baseSize = Random.Range(sparkleSize.x, sparkleSize.y) * sizeMultiplier;
+                sparkleRect.sizeDelta = new Vector2(baseSize, baseSize);
+
+                // Random initial rotation
+                sparkle.transform.rotation = Quaternion.Euler(0, 0, Random.Range(0f, 360f));
+
+                // Color: head is brighter/whiter, tail is more saturated
+                float hueShift = Random.Range(sparkleHueMin, sparkleHueMax);
+                float sat = Mathf.Lerp(sparkleSaturationMin, sparkleSaturationMax, t01);
+                sparkleImg.color = Color.HSVToRGB(hueShift, sat, 1f);
+
+                sparkles.Add(sparkle);
+
+                // Calculate delay and animate
+                float delay = i * staggerInterval;
+                float sparkleLifetime = totalDuration - delay;
+                if (sparkleLifetime < 0.15f) sparkleLifetime = 0.15f;
+
+                // Random offset for curved path (bezier-like wobble)
+                float yOffset = Random.Range(-pathCurveStrength, pathCurveStrength);
+                Vector3 controlPoint = Vector3.Lerp(sourcePos, targetPos, 0.5f) + new Vector3(Random.Range(-pathXSpread, pathXSpread), yOffset, 0);
+
+                // Animate along quadratic bezier curve using DOVirtual
+                Vector3 startPos = sourcePos;
+                DOVirtual.Float(0f, 1f, sparkleLifetime, t =>
+                {
+                    if (sparkleRect != null)
+                    {
+                        // Quadratic bezier: B(t) = (1-t)^2*P0 + 2*(1-t)*t*P1 + t^2*P2
+                        float u = 1f - t;
+                        Vector3 pos = u * u * startPos + 2f * u * t * controlPoint + t * t * targetPos;
+                        sparkleRect.position = pos;
+                    }
+                }).SetEase(Ease.InQuad).SetDelay(delay);
+
+                // Fade out in the last portion of lifetime
+                sparkleImg.DOFade(0f, sparkleLifetime * (1f - sparkleFadeStart))
+                    .SetDelay(delay + sparkleLifetime * sparkleFadeStart);
+
+                // Shrink to zero
+                sparkleRect.DOScale(0f, sparkleLifetime * (1f - sparkleShrinkStart))
+                    .SetDelay(delay + sparkleLifetime * sparkleShrinkStart);
+
+                // Rotate during flight
+                sparkle.transform.DORotate(new Vector3(0, 0, Random.Range(180f, 540f)), sparkleLifetime, RotateMode.FastBeyond360)
+                    .SetDelay(delay)
+                    .SetEase(Ease.Linear);
             }
 
-            // Animate to target position
-            tempRect.DOMove(target.position, 0.8f).SetEase(Ease.InOutQuad);
-            tempRect.DOScale(1.2f, 0.4f).SetLoops(2, LoopType.Yoyo);
+            // Wait for all sparkles to arrive
+            yield return new WaitForSeconds(totalDuration + 0.05f);
 
-            yield return new WaitForSeconds(0.8f);
+            // Impact burst at target: spawn radial sparkles
+            List<GameObject> burstSparkles = new List<GameObject>();
+            for (int i = 0; i < burstParticleCount; i++)
+            {
+                GameObject burst = new GameObject($"BurstSparkle_{i}");
+                Image burstImg = burst.AddComponent<Image>();
+                burstImg.sprite = sparkleSprite;
+                burstImg.raycastTarget = false;
+                float burstHue = Random.Range(sparkleHueMin, sparkleHueMax);
+                burstImg.color = Color.HSVToRGB(burstHue, Random.Range(sparkleSaturationMin, sparkleSaturationMax), 1f);
 
-            // Pulse target
+                RectTransform burstRect = burst.GetComponent<RectTransform>();
+                burstRect.SetParent(sparkleParent, false);
+                burstRect.position = targetPos;
+                burstRect.sizeDelta = new Vector2(burstSize, burstSize);
+
+                burstSparkles.Add(burst);
+
+                // Radial direction
+                float angle = (360f / burstParticleCount) * i + Random.Range(-15f, 15f);
+                float radians = angle * Mathf.Deg2Rad;
+                Vector3 direction = new Vector3(Mathf.Cos(radians), Mathf.Sin(radians), 0);
+                float dist = Random.Range(burstDistance.x, burstDistance.y);
+                Vector3 burstTarget = targetPos + direction * dist;
+
+                burstRect.DOMove(burstTarget, burstDuration).SetEase(Ease.OutQuad);
+                burstImg.DOFade(0f, burstDuration).SetEase(Ease.InQuad);
+                burstRect.DOScale(0f, burstDuration).SetEase(Ease.InQuad);
+            }
+
+            // Pulse target button
             if (target.GetComponent<RectTransform>() != null)
             {
-                target.DOScale(1.2f, 0.2f).SetLoops(2, LoopType.Yoyo);
+                target.DOScale(pulseScale, pulseDuration).SetEase(Ease.OutBack)
+                    .OnComplete(() => target.DOScale(1f, pulseDuration * 0.67f).SetEase(Ease.InQuad));
             }
 
-            Destroy(temp);
-            yield return new WaitForSeconds(0.4f);
+            yield return new WaitForSeconds(burstDuration + 0.05f);
+
+            // Cleanup all sparkle objects
+            foreach (var s in sparkles)
+            {
+                if (s != null) Destroy(s);
+            }
+            foreach (var s in burstSparkles)
+            {
+                if (s != null) Destroy(s);
+            }
         }
 
         public void AnimateScramble(BoardTile[][] scrambledBoard, System.Action onComplete)
