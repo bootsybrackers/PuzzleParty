@@ -1,9 +1,9 @@
 {
     "id": 10,
-    "name": "New Orleans",
+    "name": "Nashville",
     "moves": "100",
-    "holes": "1",
-    "columns": "4",
-    "rows": "7"
+    "holes": "2",
+    "columns": "3",
+    "rows": "5"
 
 }

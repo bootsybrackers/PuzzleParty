@@ -1,8 +1,8 @@
 {
     "id": 9,
-    "name": "Boston",
+    "name": "Miami",
     "moves": "100",
-    "holes": "1",
+    "holes": "3",
     "columns": "4",
     "rows": "7"
 

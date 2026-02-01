@@ -2,8 +2,8 @@
     "id": 1,
     "name": "Paris",
     "moves": "100",
-    "holes": "1",
-    "columns": "3",
-    "rows": "3"
+    "holes": "2",
+    "columns": "5",
+    "rows": "9"
 
 }

@@ -1,9 +1,12 @@
 {
     "id": 6,
-    "name": "Washington DC",
+    "name": "London",
     "moves": "100",
     "holes": "2",
-    "columns": "4",
-    "rows": "7"
+    "columns": "3",
+    "rows": "5",
+    "locked_tiles": [
+      {"row": 1, "column": 1}
+    ]
 
 }
