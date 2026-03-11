@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using PuzzleParty.EGP;
 using PuzzleParty.Maps;
 using PuzzleParty.Levels;
 using PuzzleParty.Progressions;
@@ -51,6 +52,7 @@ namespace PuzzleParty.Service
         Register(new SceneLoader());
         Register(new MapService());
         Register(new TransitionService());
+        Register(new EGPService());
     }
     }
 }

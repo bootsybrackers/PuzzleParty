@@ -16,10 +16,17 @@ namespace PuzzleParty.Levels
 
         public ParticleSystem correctTileParticlesPrefab;
         public GameObject gameEndOverlay;
+
+        [Header("Game End - Success")]
+        public GameObject gameEndSuccessPanel;
         public TextMeshProUGUI gameEndTitle;
         public TextMeshProUGUI gameEndCoinsText;
-        public Button restartButton;
         public Button nextLevelButton;
+
+        [Header("Game End - Fail")]
+        public GameObject gameEndFailPanel;
+        public TextMeshProUGUI gameEndTitleFail;
+        public Button giveUpButton;
 
         [Header("Power-Ups")]
         public Button completePuzzleButton;
@@ -28,9 +35,9 @@ namespace PuzzleParty.Levels
         [Header("Streak Icons")]
         public GameObject[] streakIcons; // Array of 3 icon GameObjects on banner
 
-        // Add more UI elements here as needed in the future
-        // public TextMeshProUGUI scoreText;
-        // public GameObject pauseButton;
-        // etc.
+        [Header("EGP (End Game Purchase)")]
+        public Button egpContinueButton;
+        public TextMeshProUGUI egpPriceText;
+        public TextMeshProUGUI egpOfferText;
     }
 }

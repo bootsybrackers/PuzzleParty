@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
 using TMPro;
+using PuzzleParty.EGP;
 using PuzzleParty.Levels;
 
 namespace PuzzleParty.Board
@@ -51,6 +52,54 @@ namespace PuzzleParty.Board
         [SerializeField] private float pulseScale = 1.2f;
         [SerializeField] private float pulseDuration = 0.18f;
 
+        [Header("Victory Confetti")]
+        [SerializeField] private float confettiSpawnRate = 0.05f; // Time between spawns
+        [SerializeField] private int confettiPerSpawn = 3; // Pieces per spawn
+        [SerializeField] private Vector2 confettiSize = new Vector2(12f, 20f); // Random size range
+        [SerializeField] private float confettiFallDuration = 2.5f; // Time to fall off screen
+        [SerializeField] private float confettiSpinSpeed = 360f; // Rotation degrees per second
+        [SerializeField] private float confettiHorizontalDrift = 80f; // Horizontal movement range
+        [SerializeField] private int confettiBurstCount = 100; // Initial burst count
+        [SerializeField] private Color[] confettiColors = new Color[]
+        {
+            new Color(1f, 0.2f, 0.3f), // Red
+            new Color(1f, 0.8f, 0.2f), // Gold
+            new Color(0.2f, 0.8f, 0.4f), // Green
+            new Color(0.3f, 0.6f, 1f), // Blue
+            new Color(0.9f, 0.4f, 0.9f), // Pink
+            new Color(1f, 0.5f, 0.2f), // Orange
+        };
+
+        [Header("Victory Text Animation")]
+        [SerializeField] private float victoryTextPunchScale = 1.3f;
+        [SerializeField] private float victoryTextPunchDuration = 0.4f;
+        [SerializeField] private int victorySparkleCount = 16;
+        [SerializeField] private float victorySparkleRadius = 120f;
+        [SerializeField] private float victorySparkleDuration = 0.8f;
+
+        // Confetti management
+        private Coroutine confettiCoroutine;
+        private List<GameObject> activeConfetti = new List<GameObject>();
+        private static Sprite _confettiSprite;
+        private static Texture2D _confettiTexture;
+
+        // Chain progression sprites (loaded once)
+        private Sprite chainSprite4; // 4 more tiles needed (initial/full chains)
+        private Sprite chainSprite3; // 3 more tiles needed
+        private Sprite chainSprite2; // 2 more tiles needed
+        private Sprite chainSprite1; // 1 more tile needed
+        private int currentChainState = -1; // Track current chain state (-1 = not initialized)
+
+        // Dark overlay sprite for locked tiles
+        private static Sprite _darkOverlaySprite;
+        private static Texture2D _darkOverlayTexture;
+
+        [Header("Chain Progress Effect")]
+        [SerializeField] private int chainParticleCount = 12;
+        [SerializeField] private float chainParticleDuration = 0.4f;
+        [SerializeField] private float chainParticleSpread = 60f;
+        [SerializeField] private Vector2 chainParticleSize = new Vector2(8f, 16f);
+
         // Dynamic tile sizing
         private int tilePixelWidth;
         private int tilePixelHeight;
@@ -77,6 +126,12 @@ namespace PuzzleParty.Board
             this.level = level;
             this.uiElements = uiElements;
             this.currentStreak = currentStreak;
+
+            // Load chain progression sprites
+            LoadChainSprites();
+
+            // Reset chain state for new level
+            currentChainState = -1;
 
             int cols = level.Columns;
             int rows = level.Rows;
@@ -212,11 +267,12 @@ namespace PuzzleParty.Board
                             lockImg.raycastTarget = false;
 
                             RectTransform lockRect = lockObj.GetComponent<RectTransform>();
-                            lockRect.anchorMin = new Vector2(1f, 0f);
-                            lockRect.anchorMax = new Vector2(1f, 0f);
-                            lockRect.pivot = new Vector2(1f, 0f);
+                            // Center the lock on the icon
+                            lockRect.anchorMin = new Vector2(0.5f, 0.5f);
+                            lockRect.anchorMax = new Vector2(0.5f, 0.5f);
+                            lockRect.pivot = new Vector2(0.5f, 0.5f);
                             lockRect.anchoredPosition = Vector2.zero;
-                            lockRect.sizeDelta = new Vector2(40f, 40f);
+                            lockRect.sizeDelta = new Vector2(35f, 35f);
                         }
                     }
                 }
@@ -339,6 +395,326 @@ namespace PuzzleParty.Board
             );
 
             return _sparkleSprite;
+        }
+
+        private static Sprite GetConfettiSprite()
+        {
+            if (_confettiSprite != null) return _confettiSprite;
+
+            // Create a simple rectangular confetti piece
+            int width = 8;
+            int height = 12;
+            _confettiTexture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    // Solid white rectangle (color is applied via Image.color)
+                    _confettiTexture.SetPixel(x, y, Color.white);
+                }
+            }
+            _confettiTexture.Apply();
+
+            _confettiSprite = Sprite.Create(
+                _confettiTexture,
+                new Rect(0, 0, width, height),
+                new Vector2(0.5f, 0.5f),
+                100f
+            );
+
+            return _confettiSprite;
+        }
+
+        private static Sprite GetDarkOverlaySprite()
+        {
+            if (_darkOverlaySprite != null) return _darkOverlaySprite;
+
+            // Create a simple white square (will be tinted dark via SpriteRenderer.color)
+            int size = 32;
+            _darkOverlayTexture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    _darkOverlayTexture.SetPixel(x, y, Color.white);
+                }
+            }
+            _darkOverlayTexture.Apply();
+
+            _darkOverlaySprite = Sprite.Create(
+                _darkOverlayTexture,
+                new Rect(0, 0, size, size),
+                new Vector2(0.5f, 0.5f),
+                100f
+            );
+
+            return _darkOverlaySprite;
+        }
+
+        private void StartConfetti()
+        {
+            if (confettiCoroutine != null)
+            {
+                StopCoroutine(confettiCoroutine);
+            }
+
+            // Start with a big initial burst
+            StartCoroutine(SpawnConfettiBurst());
+
+            // Then start continuous spawning
+            confettiCoroutine = StartCoroutine(SpawnConfettiContinuously());
+        }
+
+        private IEnumerator SpawnConfettiBurst()
+        {
+            // Get the overlay canvas for spawning
+            Canvas canvas = uiElements.gameEndOverlay.GetComponent<Canvas>();
+            if (canvas == null)
+            {
+                canvas = uiElements.gameEndOverlay.GetComponentInParent<Canvas>();
+            }
+
+            if (canvas == null)
+            {
+                Debug.LogWarning("Cannot spawn confetti burst - missing Canvas");
+                yield break;
+            }
+
+            Sprite confettiSprite = GetConfettiSprite();
+            float screenWidth = Screen.width;
+            float screenHeight = Screen.height;
+
+            // Spawn all burst confetti at once with varied positions and timing
+            for (int i = 0; i < confettiBurstCount; i++)
+            {
+                SpawnBurstConfetti(canvas.transform, confettiSprite, screenWidth, screenHeight);
+            }
+
+            yield return null;
+        }
+
+        private void SpawnBurstConfetti(Transform parent, Sprite sprite, float screenWidth, float screenHeight)
+        {
+            GameObject confettiObj = new GameObject("ConfettiBurst");
+            confettiObj.transform.SetParent(parent, false);
+
+            Image img = confettiObj.AddComponent<Image>();
+            img.sprite = sprite;
+            img.raycastTarget = false;
+
+            // Random color from palette
+            Color confettiColor = confettiColors[Random.Range(0, confettiColors.Length)];
+            img.color = confettiColor;
+
+            RectTransform rect = confettiObj.GetComponent<RectTransform>();
+
+            // Random size - bigger pieces for more impact
+            float size = Random.Range(confettiSize.x, confettiSize.y) * 1.8f;
+            rect.sizeDelta = new Vector2(size * 0.6f, size);
+
+            // Spawn from tighter center point for more explosive feel
+            float spawnX = screenWidth * 0.5f + Random.Range(-screenWidth * 0.15f, screenWidth * 0.15f);
+            float spawnY = screenHeight * 0.65f + Random.Range(-30f, 60f);
+
+            rect.position = new Vector3(spawnX, spawnY, 0f);
+
+            // Random initial rotation
+            float startRotation = Random.Range(0f, 360f);
+            rect.rotation = Quaternion.Euler(0f, 0f, startRotation);
+
+            // Track for cleanup
+            activeConfetti.Add(confettiObj);
+
+            // Burst confetti explodes in all directions - stronger upward arc then falls
+            float targetY = -100f;
+            // Much wider horizontal spread for powerful explosion
+            float driftX = Random.Range(-screenWidth * 0.8f, screenWidth * 0.8f);
+            float targetX = spawnX + driftX;
+
+            // Stronger upward velocity for dramatic arc
+            float upwardBoost = Random.Range(200f, 450f);
+            float duration = confettiFallDuration * Random.Range(1.0f, 1.5f);
+
+            // Spin direction - faster spin for explosive energy
+            float spinDirection = Random.value > 0.5f ? 1f : -1f;
+            float totalRotation = confettiSpinSpeed * 2.5f * duration * spinDirection;
+
+            // Create a sequence for the burst confetti animation
+            DG.Tweening.Sequence burstSeq = DOTween.Sequence();
+
+            // Arc motion - first go up, then fall down
+            burstSeq.Append(
+                DOVirtual.Float(0f, 1f, duration, t =>
+                {
+                    if (rect == null) return;
+
+                    // Parabolic arc motion
+                    float normalizedT = t;
+                    float xPos = Mathf.Lerp(spawnX, targetX, normalizedT);
+
+                    // Y uses parabolic curve: goes up first then down - higher arc for impact
+                    float arcHeight = upwardBoost * 1.3f;
+                    float yOffset = arcHeight * (4f * normalizedT * (1f - normalizedT)); // Parabola peak at 0.5
+                    float yBase = Mathf.Lerp(spawnY, targetY, normalizedT * normalizedT); // Accelerating fall
+                    float yPos = yBase + yOffset;
+
+                    // Flutter effect - more pronounced wobble
+                    float flutter = Mathf.Sin(normalizedT * Mathf.PI * 5f) * 35f;
+                    xPos += flutter;
+
+                    rect.position = new Vector3(xPos, yPos, 0f);
+                })
+            );
+
+            // Continuous rotation
+            burstSeq.Join(rect.DORotate(new Vector3(0f, 0f, startRotation + totalRotation), duration, RotateMode.FastBeyond360).SetEase(Ease.Linear));
+
+            // Fade out near the end
+            burstSeq.Join(img.DOFade(0f, duration * 0.3f).SetDelay(duration * 0.7f));
+
+            // Clean up when done
+            burstSeq.OnComplete(() =>
+            {
+                activeConfetti.Remove(confettiObj);
+                Destroy(confettiObj);
+            });
+        }
+
+        private void StopConfetti()
+        {
+            if (confettiCoroutine != null)
+            {
+                StopCoroutine(confettiCoroutine);
+                confettiCoroutine = null;
+            }
+
+            // Clean up any remaining confetti
+            foreach (var confetti in activeConfetti)
+            {
+                if (confetti != null)
+                {
+                    Destroy(confetti);
+                }
+            }
+            activeConfetti.Clear();
+        }
+
+        private IEnumerator SpawnConfettiContinuously()
+        {
+            // Get the overlay RectTransform to spawn confetti around its edges
+            RectTransform overlayRect = uiElements.gameEndOverlay.GetComponent<RectTransform>();
+
+            // The overlay might BE a Canvas itself, or be a child of one
+            Canvas canvas = uiElements.gameEndOverlay.GetComponent<Canvas>();
+            if (canvas == null)
+            {
+                canvas = uiElements.gameEndOverlay.GetComponentInParent<Canvas>();
+            }
+
+            if (overlayRect == null || canvas == null)
+            {
+                Debug.LogWarning("Cannot spawn confetti - missing overlay RectTransform or Canvas");
+                yield break;
+            }
+
+            Sprite confettiSprite = GetConfettiSprite();
+            float screenWidth = Screen.width;
+            float screenHeight = Screen.height;
+
+            while (true)
+            {
+                for (int i = 0; i < confettiPerSpawn; i++)
+                {
+                    SpawnSingleConfetti(canvas.transform, confettiSprite, screenWidth, screenHeight);
+                }
+                yield return new WaitForSeconds(confettiSpawnRate);
+            }
+        }
+
+        private void SpawnSingleConfetti(Transform parent, Sprite sprite, float screenWidth, float screenHeight)
+        {
+            GameObject confettiObj = new GameObject("Confetti");
+            confettiObj.transform.SetParent(parent, false);
+
+            Image img = confettiObj.AddComponent<Image>();
+            img.sprite = sprite;
+            img.raycastTarget = false;
+
+            // Random color from palette
+            Color confettiColor = confettiColors[Random.Range(0, confettiColors.Length)];
+            img.color = confettiColor;
+
+            RectTransform rect = confettiObj.GetComponent<RectTransform>();
+
+            // Random size
+            float size = Random.Range(confettiSize.x, confettiSize.y);
+            rect.sizeDelta = new Vector2(size * 0.6f, size); // Slightly rectangular
+
+            // Spawn position: top of screen, spread across the width with emphasis on edges
+            float spawnX;
+            if (Random.value > 0.5f)
+            {
+                // Spawn from left third
+                spawnX = Random.Range(0f, screenWidth * 0.35f);
+            }
+            else
+            {
+                // Spawn from right third
+                spawnX = Random.Range(screenWidth * 0.65f, screenWidth);
+            }
+            float spawnY = screenHeight + 50f; // Start above screen
+
+            rect.position = new Vector3(spawnX, spawnY, 0f);
+
+            // Random initial rotation
+            float startRotation = Random.Range(0f, 360f);
+            rect.rotation = Quaternion.Euler(0f, 0f, startRotation);
+
+            // Track for cleanup
+            activeConfetti.Add(confettiObj);
+
+            // Animate falling with drift and spin
+            float targetY = -100f; // Below screen
+            float driftX = Random.Range(-confettiHorizontalDrift, confettiHorizontalDrift);
+            float targetX = spawnX + driftX;
+
+            // Duration varies slightly for natural feel
+            float duration = confettiFallDuration * Random.Range(0.8f, 1.2f);
+
+            // Spin direction
+            float spinDirection = Random.value > 0.5f ? 1f : -1f;
+            float totalRotation = confettiSpinSpeed * duration * spinDirection;
+
+            // Create a sequence for the confetti animation
+            DG.Tweening.Sequence confettiSeq = DOTween.Sequence();
+
+            // Move down with slight ease
+            confettiSeq.Append(rect.DOMoveY(targetY, duration).SetEase(Ease.InQuad));
+
+            // Horizontal drift with sine wave pattern for flutter effect
+            confettiSeq.Join(
+                DOVirtual.Float(0f, 1f, duration, t =>
+                {
+                    float wave = Mathf.Sin(t * Mathf.PI * 3f) * 30f; // Flutter
+                    float drift = Mathf.Lerp(spawnX, targetX, t);
+                    rect.position = new Vector3(drift + wave, rect.position.y, 0f);
+                })
+            );
+
+            // Continuous rotation
+            confettiSeq.Join(rect.DORotate(new Vector3(0f, 0f, startRotation + totalRotation), duration, RotateMode.FastBeyond360).SetEase(Ease.Linear));
+
+            // Fade out near the end
+            confettiSeq.Join(img.DOFade(0f, duration * 0.3f).SetDelay(duration * 0.7f));
+
+            // Clean up when done
+            confettiSeq.OnComplete(() =>
+            {
+                activeConfetti.Remove(confettiObj);
+                Destroy(confettiObj);
+            });
         }
 
         private IEnumerator AnimateIconToTarget(GameObject sourceIcon, Transform target)
@@ -561,6 +937,23 @@ namespace PuzzleParty.Board
         {
             Debug.Log("AnimateLocksAppearing called");
 
+            // Calculate how many tiles are correctly placed after scramble
+            int correctCount = 0;
+            for (int i = 0; i < scrambledBoard.Length; i++)
+            {
+                for (int j = 0; j < scrambledBoard[i].Length; j++)
+                {
+                    BoardTile tile = scrambledBoard[i][j];
+                    if (tile != null && tile.Row == i && tile.Column == j)
+                    {
+                        correctCount++;
+                    }
+                }
+            }
+            int tilesRemaining = Mathf.Max(1, 4 - correctCount); // At least 1 to show chains
+            currentChainState = tilesRemaining; // Set initial state
+            Debug.Log($"Initial chain state: {correctCount} correct, {tilesRemaining} remaining");
+
             // Find all locked tiles in the scrambled board
             List<GameObject> lockedTileObjects = new List<GameObject>();
 
@@ -592,8 +985,26 @@ namespace PuzzleParty.Board
                 {
                     GameObject tileObj = lockedTileObjects[i];
 
-                    // Add chain overlay
-                    AddChainOverlay(tileObj);
+                    // Add chain overlay with correct initial state
+                    AddChainOverlay(tileObj, tilesRemaining);
+
+                    float delay = i * 0.1f; // 0.1 second stagger between each lock
+
+                    // Find the dark overlay and animate it
+                    Transform darkOverlay = tileObj.transform.Find("ChainDarkOverlay");
+                    if (darkOverlay != null)
+                    {
+                        SpriteRenderer darkSr = darkOverlay.GetComponent<SpriteRenderer>();
+                        if (darkSr != null)
+                        {
+                            // Start with alpha 0 and fade in
+                            Color darkColor = darkSr.color;
+                            float targetAlpha = darkColor.a;
+                            darkColor.a = 0f;
+                            darkSr.color = darkColor;
+                            lockSequence.Insert(delay, darkSr.DOFade(targetAlpha, 0.5f));
+                        }
+                    }
 
                     // Find the chain overlay we just added
                     Transform chainOverlay = tileObj.transform.Find("ChainOverlay");
@@ -606,7 +1017,6 @@ namespace PuzzleParty.Board
                         chainOverlay.localScale = Vector3.zero;
 
                         // Animate scale up to the target scale with bounce effect, staggered
-                        float delay = i * 0.1f; // 0.1 second stagger between each lock
                         lockSequence.Insert(delay, chainOverlay.DOScale(targetScale, 0.5f).SetEase(Ease.OutBack));
 
                         // Also start with alpha 0 and fade in
@@ -801,12 +1211,12 @@ namespace PuzzleParty.Board
             Debug.Log($"After one frame - particleCount: {particles.particleCount}, isPlaying: {particles.isPlaying}, isEmitting: {particles.isEmitting}");
         }
 
-        public void FillHolesAndShowOverlay(BoardTile[][] completeBoard, bool success, int coinsEarned, System.Action onRestart, System.Action onNextLevel)
+        public void FillHolesAndShowOverlay(BoardTile[][] completeBoard, bool success, int coinsEarned, System.Action onGiveUp, System.Action onNextLevel)
         {
             // First, fill in the holes to show complete image
             StartCoroutine(FillHolesAnimation(completeBoard, () => {
                 // After holes are filled, show the overlay
-                ShowGameEndOverlay(success, coinsEarned, onRestart, onNextLevel);
+                ShowGameEndOverlay(success, coinsEarned, onGiveUp, onNextLevel);
             }));
         }
 
@@ -873,87 +1283,115 @@ namespace PuzzleParty.Board
             onComplete?.Invoke();
         }
 
-        public void ShowGameEndOverlay(bool success, int coinsEarned, System.Action onRestart, System.Action onNextLevel)
+        public void ShowGameEndOverlay(bool success, int coinsEarned, System.Action onGiveUp, System.Action onNextLevel)
         {
-            Debug.Log($"ShowGameEndOverlay called. success: {success}, coinsEarned: {coinsEarned}");
-            Debug.Log($"uiElements is null: {uiElements == null}");
-            if (uiElements != null)
-            {
-                Debug.Log($"gameEndOverlay is null: {uiElements.gameEndOverlay == null}");
-            }
-
             if (uiElements?.gameEndOverlay == null)
             {
                 Debug.LogError("Cannot show overlay - uiElements or gameEndOverlay is null!");
                 return;
             }
 
-            Debug.Log("Showing overlay...");
-
-            // Setup button listeners
-            if (uiElements.restartButton != null)
-            {
-                uiElements.restartButton.onClick.RemoveAllListeners();
-                uiElements.restartButton.onClick.AddListener(() => onRestart?.Invoke());
-            }
-
-            if (uiElements.nextLevelButton != null)
-            {
-                uiElements.nextLevelButton.onClick.RemoveAllListeners();
-                uiElements.nextLevelButton.onClick.AddListener(() => onNextLevel?.Invoke());
-            }
-
-            // Set text and buttons based on success/failure
             if (success)
             {
+                // Show success panel, hide fail panel
+                if (uiElements.gameEndSuccessPanel != null) uiElements.gameEndSuccessPanel.SetActive(true);
+                if (uiElements.gameEndFailPanel != null) uiElements.gameEndFailPanel.SetActive(false);
+
                 if (uiElements.gameEndTitle != null)
                 {
                     uiElements.gameEndTitle.text = "Victory!";
-                }
-
-                if (uiElements.restartButton != null)
-                {
-                    uiElements.restartButton.gameObject.SetActive(true);
+                    StartCoroutine(AnimateVictoryText(uiElements.gameEndTitle));
                 }
 
                 if (uiElements.nextLevelButton != null)
                 {
-                    uiElements.nextLevelButton.gameObject.SetActive(true);
+                    uiElements.nextLevelButton.onClick.RemoveAllListeners();
+                    uiElements.nextLevelButton.onClick.AddListener(() => onNextLevel?.Invoke());
+                    StartContinueButtonPulseAnimation();
                 }
 
-                // Animate coin counter
                 if (uiElements.gameEndCoinsText != null)
                 {
                     StartCoroutine(AnimateCoinCounter(coinsEarned));
                 }
+
+                StartConfetti();
             }
             else
             {
-                if (uiElements.gameEndTitle != null)
+                // Show fail panel, hide success panel
+                if (uiElements.gameEndSuccessPanel != null) uiElements.gameEndSuccessPanel.SetActive(false);
+                if (uiElements.gameEndFailPanel != null) uiElements.gameEndFailPanel.SetActive(true);
+
+                StopConfetti();
+                HideEGPElements();
+
+                if (uiElements.gameEndTitleFail != null)
                 {
-                    uiElements.gameEndTitle.text = "Out of Moves!";
+                    uiElements.gameEndTitleFail.text = "Out of Moves!";
                 }
 
-                if (uiElements.gameEndCoinsText != null)
+                if (uiElements.giveUpButton != null)
                 {
-                    uiElements.gameEndCoinsText.text = "Try Again";
-                }
-
-                if (uiElements.nextLevelButton != null)
-                {
-                    uiElements.nextLevelButton.gameObject.SetActive(false);
-                }
-
-                if (uiElements.restartButton != null)
-                {
-                    uiElements.restartButton.gameObject.SetActive(true);
+                    uiElements.giveUpButton.onClick.RemoveAllListeners();
+                    uiElements.giveUpButton.onClick.AddListener(() => onGiveUp?.Invoke());
                 }
             }
 
-            // Show overlay with animation
+            ShowOverlayAnimation();
+        }
+
+        public void ShowEGPOverlay(EGPRound offer, bool canAfford, System.Action onPurchase, System.Action onGiveUp)
+        {
+            if (uiElements?.gameEndOverlay == null)
+            {
+                Debug.LogError("Cannot show EGP overlay - uiElements or gameEndOverlay is null!");
+                return;
+            }
+
+            StopConfetti();
+
+            // Show fail panel, hide success panel
+            if (uiElements.gameEndSuccessPanel != null) uiElements.gameEndSuccessPanel.SetActive(false);
+            if (uiElements.gameEndFailPanel != null) uiElements.gameEndFailPanel.SetActive(true);
+
+            // Set offer text
+            if (uiElements.egpOfferText != null)
+            {
+                uiElements.egpOfferText.gameObject.SetActive(true);
+                uiElements.egpOfferText.text = $"+{offer.contents.extraMoves} moves";
+            }
+
+            // Set price text
+            if (uiElements.egpPriceText != null)
+            {
+                uiElements.egpPriceText.gameObject.SetActive(true);
+                uiElements.egpPriceText.text = $"{offer.price} coins";
+            }
+
+            // Setup continue button
+            if (uiElements.egpContinueButton != null)
+            {
+                uiElements.egpContinueButton.gameObject.SetActive(true);
+                uiElements.egpContinueButton.interactable = canAfford;
+                uiElements.egpContinueButton.onClick.RemoveAllListeners();
+                uiElements.egpContinueButton.onClick.AddListener(() => onPurchase?.Invoke());
+            }
+
+            // Setup give up button
+            if (uiElements.giveUpButton != null)
+            {
+                uiElements.giveUpButton.onClick.RemoveAllListeners();
+                uiElements.giveUpButton.onClick.AddListener(() => onGiveUp?.Invoke());
+            }
+
+            ShowOverlayAnimation();
+        }
+
+        private void ShowOverlayAnimation()
+        {
             uiElements.gameEndOverlay.SetActive(true);
 
-            // Get the Image component to fade it in
             UnityEngine.UI.Image overlayImage = uiElements.gameEndOverlay.GetComponent<UnityEngine.UI.Image>();
             if (overlayImage != null)
             {
@@ -963,11 +1401,26 @@ namespace PuzzleParty.Board
                 overlayImage.DOFade(0.9f, 0.6f).SetEase(Ease.OutQuad);
             }
 
-            // Start with scale 0 and animate up with a slight delay for smoother feel
             uiElements.gameEndOverlay.transform.localScale = Vector3.zero;
             uiElements.gameEndOverlay.transform.DOScale(Vector3.one, 0.6f)
                 .SetEase(Ease.OutBack)
-                .SetDelay(0.2f);  // Small delay before scaling up
+                .SetDelay(0.2f);
+        }
+
+        public void HideEGPElements()
+        {
+            if (uiElements.egpContinueButton != null)
+            {
+                uiElements.egpContinueButton.gameObject.SetActive(false);
+            }
+            if (uiElements.egpOfferText != null)
+            {
+                uiElements.egpOfferText.gameObject.SetActive(false);
+            }
+            if (uiElements.egpPriceText != null)
+            {
+                uiElements.egpPriceText.gameObject.SetActive(false);
+            }
         }
 
         private IEnumerator AnimateCoinCounter(int coinsEarned)
@@ -992,12 +1445,207 @@ namespace PuzzleParty.Board
             uiElements.gameEndCoinsText.text = $"+{coinsEarned} coins!";
         }
 
+        private IEnumerator AnimateVictoryText(TMP_Text victoryText)
+        {
+            // Hide text initially while confetti burst happens
+            RectTransform textRect = victoryText.GetComponent<RectTransform>();
+            if (textRect == null) yield break;
+
+            // Store original scale and hide text
+            Vector3 originalScale = textRect.localScale;
+            textRect.localScale = Vector3.zero;
+
+            // Wait for confetti burst to clear the center area
+            yield return new WaitForSeconds(0.9f);
+
+            // Get canvas for sparkle spawning
+            Canvas canvas = victoryText.GetComponentInParent<Canvas>();
+            if (canvas == null) yield break;
+
+            // Initial punch scale animation
+            textRect.DOScale(originalScale * victoryTextPunchScale, victoryTextPunchDuration * 0.6f)
+                .SetEase(Ease.OutBack)
+                .OnComplete(() => {
+                    textRect.DOScale(originalScale, victoryTextPunchDuration * 0.4f).SetEase(Ease.InOutQuad);
+                });
+
+            // Spawn sparkles around the text
+            StartCoroutine(SpawnVictorySparkles(textRect, canvas.transform));
+
+            // Color shimmer effect - cycle through golden/white colors
+            DG.Tweening.Sequence colorSeq = DOTween.Sequence();
+            Color goldColor = new Color(1f, 0.85f, 0.3f);
+            Color brightGold = new Color(1f, 0.95f, 0.6f);
+
+            // Continuous subtle shimmer
+            colorSeq.Append(victoryText.DOColor(brightGold, 0.3f));
+            colorSeq.Append(victoryText.DOColor(goldColor, 0.3f));
+            colorSeq.Append(victoryText.DOColor(Color.white, 0.3f));
+            colorSeq.Append(victoryText.DOColor(goldColor, 0.3f));
+            colorSeq.SetLoops(3);
+            colorSeq.OnComplete(() => victoryText.color = goldColor);
+
+            // Subtle continuous pulse
+            yield return new WaitForSeconds(1.5f);
+
+            // Gentle continuous scale pulse
+            textRect.DOScale(originalScale * 1.05f, 0.8f)
+                .SetEase(Ease.InOutSine)
+                .SetLoops(-1, LoopType.Yoyo);
+        }
+
+        private IEnumerator SpawnVictorySparkles(RectTransform textRect, Transform parent)
+        {
+            Sprite sparkleSprite = GetSparkleSprite();
+            Vector3 centerPos = textRect.position;
+
+            // Spawn sparkles in a burst pattern around the text
+            for (int i = 0; i < victorySparkleCount; i++)
+            {
+                GameObject sparkle = new GameObject($"VictorySparkle_{i}");
+                sparkle.transform.SetParent(parent, false);
+
+                Image sparkleImg = sparkle.AddComponent<Image>();
+                sparkleImg.sprite = sparkleSprite;
+                sparkleImg.raycastTarget = false;
+
+                // Golden/white sparkle colors
+                Color[] sparkleColors = new Color[]
+                {
+                    new Color(1f, 0.95f, 0.6f),  // Bright gold
+                    new Color(1f, 0.85f, 0.3f),  // Gold
+                    Color.white,
+                    new Color(1f, 0.9f, 0.5f),   // Light gold
+                };
+                sparkleImg.color = sparkleColors[Random.Range(0, sparkleColors.Length)];
+
+                RectTransform sparkleRect = sparkle.GetComponent<RectTransform>();
+
+                // Random size
+                float size = Random.Range(15f, 35f);
+                sparkleRect.sizeDelta = new Vector2(size, size);
+
+                // Start at text center
+                sparkleRect.position = centerPos;
+
+                // Calculate outward direction (radial burst)
+                float angle = (i / (float)victorySparkleCount) * 360f + Random.Range(-20f, 20f);
+                float distance = victorySparkleRadius * Random.Range(0.7f, 1.3f);
+                Vector3 targetPos = centerPos + new Vector3(
+                    Mathf.Cos(angle * Mathf.Deg2Rad) * distance,
+                    Mathf.Sin(angle * Mathf.Deg2Rad) * distance,
+                    0f
+                );
+
+                // Staggered spawn timing
+                float delay = (i / (float)victorySparkleCount) * 0.15f;
+
+                // Animate outward with fade
+                sparkleRect.DOMove(targetPos, victorySparkleDuration)
+                    .SetDelay(delay)
+                    .SetEase(Ease.OutQuad);
+
+                sparkleRect.DOScale(0f, victorySparkleDuration * 0.4f)
+                    .SetDelay(delay + victorySparkleDuration * 0.6f)
+                    .SetEase(Ease.InQuad);
+
+                sparkleImg.DOFade(0f, victorySparkleDuration * 0.3f)
+                    .SetDelay(delay + victorySparkleDuration * 0.7f);
+
+                // Spin effect
+                sparkle.transform.DORotate(new Vector3(0, 0, Random.Range(180f, 360f)), victorySparkleDuration, RotateMode.FastBeyond360)
+                    .SetDelay(delay)
+                    .SetEase(Ease.Linear);
+
+                // Cleanup
+                Destroy(sparkle, victorySparkleDuration + delay + 0.1f);
+            }
+
+            // Second wave of sparkles after a delay
+            yield return new WaitForSeconds(0.4f);
+
+            for (int i = 0; i < victorySparkleCount / 2; i++)
+            {
+                GameObject sparkle = new GameObject($"VictorySparkle2_{i}");
+                sparkle.transform.SetParent(parent, false);
+
+                Image sparkleImg = sparkle.AddComponent<Image>();
+                sparkleImg.sprite = sparkleSprite;
+                sparkleImg.raycastTarget = false;
+
+                sparkleImg.color = new Color(1f, 0.9f, 0.4f, 0.9f);
+
+                RectTransform sparkleRect = sparkle.GetComponent<RectTransform>();
+                float size = Random.Range(12f, 28f);
+                sparkleRect.sizeDelta = new Vector2(size, size);
+                sparkleRect.position = centerPos;
+
+                float angle = Random.Range(0f, 360f);
+                float distance = victorySparkleRadius * Random.Range(0.5f, 1.0f);
+                Vector3 targetPos = centerPos + new Vector3(
+                    Mathf.Cos(angle * Mathf.Deg2Rad) * distance,
+                    Mathf.Sin(angle * Mathf.Deg2Rad) * distance,
+                    0f
+                );
+
+                float delay = Random.Range(0f, 0.1f);
+
+                sparkleRect.DOMove(targetPos, victorySparkleDuration * 0.8f)
+                    .SetDelay(delay)
+                    .SetEase(Ease.OutQuad);
+
+                sparkleImg.DOFade(0f, victorySparkleDuration * 0.5f)
+                    .SetDelay(delay + victorySparkleDuration * 0.3f);
+
+                sparkleRect.DOScale(0f, victorySparkleDuration * 0.4f)
+                    .SetDelay(delay + victorySparkleDuration * 0.4f);
+
+                Destroy(sparkle, victorySparkleDuration + delay + 0.2f);
+            }
+        }
+
         public void HideGameEndOverlay()
         {
+            // Stop confetti celebration
+            StopConfetti();
+
+            // Stop continue button animation
+            StopContinueButtonPulseAnimation();
+
+            // Hide EGP elements
+            HideEGPElements();
+
             if (uiElements?.gameEndOverlay != null)
             {
                 uiElements.gameEndOverlay.SetActive(false);
             }
+        }
+
+        private void StartContinueButtonPulseAnimation()
+        {
+            if (uiElements?.nextLevelButton == null) return;
+
+            // Kill any existing animation first
+            uiElements.nextLevelButton.transform.DOKill();
+
+            // Reset to normal scale
+            uiElements.nextLevelButton.transform.localScale = Vector3.one;
+
+            // Subtle pulse animation matching main menu play button - scale from 1.0 to 1.05 and back
+            // Delay start until overlay animation finishes (0.2s delay + 0.6s scale = 0.8s)
+            uiElements.nextLevelButton.transform.DOScale(1.05f, 0.8f)
+                .SetEase(Ease.InOutSine)
+                .SetLoops(-1, LoopType.Yoyo)
+                .SetDelay(0.9f);
+        }
+
+        private void StopContinueButtonPulseAnimation()
+        {
+            if (uiElements?.nextLevelButton == null) return;
+
+            // Kill the animation and reset scale
+            uiElements.nextLevelButton.transform.DOKill();
+            uiElements.nextLevelButton.transform.localScale = Vector3.one;
         }
 
         private Texture2D LoadTextureFromFile(string filePath)
@@ -1192,19 +1840,190 @@ namespace PuzzleParty.Board
         private void UpdateChainOverlay(GameObject tileObj, bool shouldBeLocked)
         {
             Transform chainOverlay = tileObj.transform.Find("ChainOverlay");
+            Transform darkOverlay = tileObj.transform.Find("ChainDarkOverlay");
             bool hasChain = chainOverlay != null;
 
             if (shouldBeLocked && !hasChain)
             {
-                // Should be locked but no chain - add it
-                AddChainOverlay(tileObj);
+                // Should be locked but no chain - add it with current chain state
+                int tilesRemaining = currentChainState > 0 ? currentChainState : 3;
+                AddChainOverlay(tileObj, tilesRemaining);
             }
             else if (!shouldBeLocked && hasChain)
             {
                 // Should not be locked but has chain - remove it immediately (no animation here)
                 Destroy(chainOverlay.gameObject);
+                if (darkOverlay != null)
+                {
+                    Destroy(darkOverlay.gameObject);
+                }
                 Debug.Log($"Removed chain overlay from {tileObj.name} (tile unlocked)");
             }
+        }
+
+        /// <summary>
+        /// Loads all chain progression sprites
+        /// </summary>
+        private void LoadChainSprites()
+        {
+            chainSprite4 = Resources.Load<Sprite>("Images/chains"); // Full chains (4+ remaining)
+            chainSprite3 = Resources.Load<Sprite>("Images/chains_3");
+            chainSprite2 = Resources.Load<Sprite>("Images/chains_2");
+            chainSprite1 = Resources.Load<Sprite>("Images/chains_1");
+
+            Debug.Log($"Chain sprites loaded - 4: {chainSprite4 != null}, 3: {chainSprite3 != null}, 2: {chainSprite2 != null}, 1: {chainSprite1 != null}");
+
+            if (chainSprite4 == null || chainSprite3 == null || chainSprite2 == null || chainSprite1 == null)
+            {
+                Debug.LogWarning("Some chain sprites not found. Make sure chains.png, chains_3.png, chains_2.png, chains_1.png are in Resources/Images/");
+            }
+        }
+
+        /// <summary>
+        /// Gets the appropriate chain sprite based on tiles remaining until unlock
+        /// </summary>
+        private Sprite GetChainSpriteForRemaining(int tilesRemaining)
+        {
+            if (tilesRemaining >= 4) return chainSprite4; // Full chains (0 correct)
+            if (tilesRemaining == 3) return chainSprite3;  // 1 correct
+            if (tilesRemaining == 2) return chainSprite2;  // 2 correct
+            if (tilesRemaining == 1) return chainSprite1;  // 3 correct
+            return null; // Should be unlocked (4+ correct)
+        }
+
+        /// <summary>
+        /// Updates the chain progress on all locked tiles based on correctly placed tile count
+        /// </summary>
+        public void UpdateChainProgress(int correctlyPlacedCount)
+        {
+            int tilesRemaining = Mathf.Max(0, 4 - correctlyPlacedCount);
+
+            // Don't animate if state hasn't changed
+            if (tilesRemaining == currentChainState)
+            {
+                return;
+            }
+
+            int previousState = currentChainState;
+            currentChainState = tilesRemaining;
+
+            Debug.Log($"Chain progress update: {correctlyPlacedCount} correct, {tilesRemaining} remaining (was {previousState})");
+
+            // If unlocked (0 remaining), don't update chains - AnimateUnlock handles that
+            if (tilesRemaining == 0)
+            {
+                return;
+            }
+
+            Sprite newSprite = GetChainSpriteForRemaining(tilesRemaining);
+            if (newSprite == null)
+            {
+                Debug.LogWarning($"No chain sprite found for {tilesRemaining} remaining");
+                return;
+            }
+
+            // Update all chain overlays with animation
+            foreach (var kvp in tileObjects)
+            {
+                GameObject tileObj = kvp.Value;
+                Transform chainOverlay = tileObj.transform.Find("ChainOverlay");
+
+                if (chainOverlay != null)
+                {
+                    SpriteRenderer chainSr = chainOverlay.GetComponent<SpriteRenderer>();
+                    if (chainSr != null && chainSr.sprite != newSprite)
+                    {
+                        // Animate the chain transition
+                        AnimateChainTransition(chainOverlay.gameObject, chainSr, newSprite);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Animates the transition between chain sprites with particle burst
+        /// </summary>
+        private void AnimateChainTransition(GameObject chainObj, SpriteRenderer chainSr, Sprite newSprite)
+        {
+            Vector3 originalScale = chainObj.transform.localScale;
+            Vector3 worldPos = chainObj.transform.position;
+
+            // Spawn particle burst at the chain position
+            StartCoroutine(SpawnChainBreakParticles(worldPos));
+
+            // Quick scale down, swap sprite, scale back up
+            DG.Tweening.Sequence transitionSeq = DOTween.Sequence();
+
+            // Scale down with slight rotation
+            transitionSeq.Append(chainObj.transform.DOScale(originalScale * 0.7f, 0.12f).SetEase(Ease.InBack));
+            transitionSeq.Join(chainSr.DOFade(0.3f, 0.12f));
+
+            // Swap sprite at the midpoint
+            transitionSeq.AppendCallback(() => {
+                chainSr.sprite = newSprite;
+            });
+
+            // Scale back up with bounce
+            transitionSeq.Append(chainObj.transform.DOScale(originalScale, 0.2f).SetEase(Ease.OutBack));
+            transitionSeq.Join(chainSr.DOFade(1f, 0.15f));
+
+            // Add a small shake for impact
+            transitionSeq.Join(chainObj.transform.DOShakePosition(0.15f, 0.05f, 10, 90f, false, true));
+        }
+
+        /// <summary>
+        /// Spawns particle burst effect when chain state changes
+        /// </summary>
+        private IEnumerator SpawnChainBreakParticles(Vector3 worldPos)
+        {
+            // Create particles that burst outward from the chain
+            List<GameObject> particles = new List<GameObject>();
+
+            for (int i = 0; i < chainParticleCount; i++)
+            {
+                GameObject particle = new GameObject("ChainParticle");
+                particle.transform.position = worldPos;
+
+                SpriteRenderer sr = particle.AddComponent<SpriteRenderer>();
+                sr.sprite = GetSparkleSprite();
+                sr.sortingOrder = 25; // Above chain
+
+                // Random metallic colors (silver, gold, copper)
+                Color[] metalColors = new Color[]
+                {
+                    new Color(0.8f, 0.8f, 0.85f), // Silver
+                    new Color(1f, 0.85f, 0.4f),   // Gold
+                    new Color(0.85f, 0.55f, 0.3f), // Copper
+                    new Color(0.6f, 0.6f, 0.65f), // Dark silver
+                };
+                sr.color = metalColors[Random.Range(0, metalColors.Length)];
+
+                // Random size
+                float size = Random.Range(chainParticleSize.x, chainParticleSize.y) * 0.01f;
+                particle.transform.localScale = new Vector3(size, size, 1f);
+
+                particles.Add(particle);
+
+                // Calculate burst direction (radial outward)
+                float angle = (i / (float)chainParticleCount) * 360f + Random.Range(-15f, 15f);
+                float distance = Random.Range(chainParticleSpread * 0.5f, chainParticleSpread) * 0.01f;
+                Vector3 targetPos = worldPos + new Vector3(
+                    Mathf.Cos(angle * Mathf.Deg2Rad) * distance,
+                    Mathf.Sin(angle * Mathf.Deg2Rad) * distance,
+                    0f
+                );
+
+                // Animate outward with fade
+                float duration = chainParticleDuration * Random.Range(0.8f, 1.2f);
+                particle.transform.DOMove(targetPos, duration).SetEase(Ease.OutQuad);
+                particle.transform.DOScale(Vector3.zero, duration).SetEase(Ease.InQuad);
+                sr.DOFade(0f, duration * 0.8f).SetDelay(duration * 0.2f);
+
+                // Cleanup after animation
+                Destroy(particle, duration + 0.1f);
+            }
+
+            yield return null;
         }
 
         /// <summary>
@@ -1212,19 +2031,49 @@ namespace PuzzleParty.Board
         /// </summary>
         private void AddChainOverlay(GameObject tileObj)
         {
-            Debug.Log($"AddChainOverlay called for tile {tileObj.name}");
+            AddChainOverlay(tileObj, 3); // Default to showing 3 remaining
+        }
 
-            // Load the chains sprite from Resources
-            Sprite chainSprite = Resources.Load<Sprite>("Images/chains");
+        /// <summary>
+        /// Adds a chain overlay sprite to a locked tile with specific remaining count
+        /// </summary>
+        private void AddChainOverlay(GameObject tileObj, int tilesRemaining)
+        {
+            Debug.Log($"AddChainOverlay called for tile {tileObj.name}, tilesRemaining: {tilesRemaining}");
 
-            Debug.Log($"Chain sprite loaded: {chainSprite != null}");
+            Sprite chainSprite = GetChainSpriteForRemaining(tilesRemaining);
 
             if (chainSprite == null)
             {
-                Debug.LogError("Failed to load chains.png from Resources/Images/");
-                Debug.LogError("Make sure chains.png is at: Client/Assets/Resources/Images/chains.png");
+                Debug.LogError($"Failed to load chain sprite for {tilesRemaining} remaining");
                 return;
             }
+
+            // Get the tile's sprite renderer for sizing
+            SpriteRenderer tileSr = tileObj.GetComponent<SpriteRenderer>();
+            float tileWidth = 1f;
+            float tileHeight = 1f;
+            if (tileSr != null && tileSr.sprite != null)
+            {
+                tileWidth = tileSr.sprite.bounds.size.x;
+                tileHeight = tileSr.sprite.bounds.size.y;
+            }
+
+            // Create dark overlay behind the chain to make it stand out
+            GameObject darkOverlay = new GameObject("ChainDarkOverlay");
+            darkOverlay.transform.SetParent(tileObj.transform, false);
+            darkOverlay.transform.localPosition = Vector3.zero;
+
+            SpriteRenderer darkSr = darkOverlay.AddComponent<SpriteRenderer>();
+            darkSr.sprite = GetDarkOverlaySprite();
+            darkSr.sortingOrder = 19; // Just below the chain
+            darkSr.color = new Color(0f, 0f, 0f, 0.5f); // Semi-transparent black
+
+            // Scale dark overlay to cover the tile
+            float darkSpriteSize = darkSr.sprite.bounds.size.x; // It's square
+            float darkScaleX = tileWidth / darkSpriteSize;
+            float darkScaleY = tileHeight / darkSpriteSize;
+            darkOverlay.transform.localScale = new Vector3(darkScaleX, darkScaleY, 1f);
 
             // Create chain overlay as child of tile
             GameObject chainObj = new GameObject("ChainOverlay");
@@ -1232,27 +2081,25 @@ namespace PuzzleParty.Board
 
             SpriteRenderer chainSr = chainObj.AddComponent<SpriteRenderer>();
             chainSr.sprite = chainSprite;
-            chainSr.sortingOrder = 20; // Above the tile
+            chainSr.sortingOrder = 20; // Above the dark overlay
 
             // Position at tile center
             chainObj.transform.localPosition = Vector3.zero;
 
-            // Get the tile's sprite renderer to match size
-            SpriteRenderer tileSr = tileObj.GetComponent<SpriteRenderer>();
+            // Calculate scale to fit within tile while preserving aspect ratio
             if (tileSr != null && tileSr.sprite != null)
             {
-                // Calculate scale to match tile size
-                float tileWidth = tileSr.sprite.bounds.size.x;
-                float tileHeight = tileSr.sprite.bounds.size.y;
                 float chainWidth = chainSprite.bounds.size.x;
                 float chainHeight = chainSprite.bounds.size.y;
 
-                // Scale chain to fit tile (cover it completely)
+                // Use uniform scaling to preserve aspect ratio
+                // Scale to fit within the tile (use the smaller scale factor)
                 float scaleX = tileWidth / chainWidth;
                 float scaleY = tileHeight / chainHeight;
+                float uniformScale = Mathf.Min(scaleX, scaleY) * 0.85f; // 85% to add some padding
 
-                chainObj.transform.localScale = new Vector3(scaleX, scaleY, 1f);
-                Debug.Log($"Chain scale: {scaleX}x{scaleY}, Tile size: {tileWidth}x{tileHeight}, Chain size: {chainWidth}x{chainHeight}");
+                chainObj.transform.localScale = new Vector3(uniformScale, uniformScale, 1f);
+                Debug.Log($"Chain uniform scale: {uniformScale}, Tile size: {tileWidth}x{tileHeight}, Chain size: {chainWidth}x{chainHeight}");
             }
             else
             {
@@ -1277,8 +2124,9 @@ namespace PuzzleParty.Board
 
                 // Find the chain overlay child
                 Transform chainOverlay = tileObj.transform.Find("ChainOverlay");
+                Transform darkOverlay = tileObj.transform.Find("ChainDarkOverlay");
 
-                Debug.Log($"Chain overlay found: {chainOverlay != null}");
+                Debug.Log($"Chain overlay found: {chainOverlay != null}, Dark overlay found: {darkOverlay != null}");
 
                 if (chainOverlay != null)
                 {
@@ -1305,6 +2153,21 @@ namespace PuzzleParty.Board
                 else
                 {
                     Debug.LogWarning($"No chain overlay found on tile [{row},{col}]");
+                }
+
+                // Also fade out the dark overlay
+                if (darkOverlay != null)
+                {
+                    SpriteRenderer darkSr = darkOverlay.GetComponent<SpriteRenderer>();
+                    if (darkSr != null)
+                    {
+                        darkSr.DOFade(0f, 0.3f)
+                            .OnComplete(() =>
+                            {
+                                Destroy(darkOverlay.gameObject);
+                                Debug.Log($"Dark overlay removed from tile [{row},{col}]");
+                            });
+                    }
                 }
             }
             else

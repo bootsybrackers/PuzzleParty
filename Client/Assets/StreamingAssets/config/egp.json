@@ -1,0 +1,25 @@
+{
+  "rounds": [
+    {
+      "round": 1,
+      "price": 900,
+      "contents": {
+        "extraMoves": 20
+      }
+    },
+    {
+      "round": 2,
+      "price": 1900,
+      "contents": {
+        "extraMoves": 20
+      }
+    },
+    {
+      "round": 3,
+      "price": 2900,
+      "contents": {
+        "extraMoves": 20
+      }
+    }
+  ]
+}

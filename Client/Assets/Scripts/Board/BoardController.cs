@@ -5,6 +5,7 @@ using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using PuzzleParty.EGP;
 using PuzzleParty.Levels;
 using PuzzleParty.Progressions;
 using PuzzleParty.Service;
@@ -30,6 +31,7 @@ namespace PuzzleParty.Board
         private IProgressionService progressionService;
         private ISceneLoader sceneLoader;
         private ITransitionService transitionService;
+        private IEGPService egpService;
         private BoardView boardView;
         private BoardManager boardManager;
         private Level currentLevel;
@@ -58,6 +60,7 @@ namespace PuzzleParty.Board
             progressionService = ServiceLocator.GetInstance().Get<ProgressionService>();
             sceneLoader = ServiceLocator.GetInstance().Get<SceneLoader>();
             transitionService = ServiceLocator.GetInstance().Get<TransitionService>();
+            egpService = ServiceLocator.GetInstance().Get<EGPService>();
             SetupLevel();
 
             // Fade in from black when scene starts
@@ -82,14 +85,23 @@ namespace PuzzleParty.Board
                 isDragging = true;
             }
 
-            
-
-            if (Input.GetMouseButtonUp(0) && isDragging)
+            // Check while dragging if threshold is reached - auto-trigger move
+            if (Input.GetMouseButton(0) && isDragging)
             {
-                Vector3 mouseUpPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-                mouseUpPosition.z = 0; // Ensure we're on the same z-plane as tiles
-                Debug.Log($"Mouse up at screen: {Input.mousePosition}, world: {mouseUpPosition}");
-                ProcessSwipe(mouseDownPosition, mouseUpPosition);
+                Vector3 currentPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+                currentPosition.z = 0;
+
+                float dragDistance = Vector3.Distance(mouseDownPosition, currentPosition);
+                if (dragDistance >= dragThreshold)
+                {
+                    Debug.Log($"Drag threshold reached: {dragDistance}");
+                    ProcessSwipe(mouseDownPosition, currentPosition);
+                    isDragging = false; // Reset so we don't trigger again until next mouse down
+                }
+            }
+
+            if (Input.GetMouseButtonUp(0))
+            {
                 isDragging = false;
             }
         }
@@ -197,6 +209,7 @@ namespace PuzzleParty.Board
 
         void SetupLevel()
         {
+            egpService.ResetRounds();
             currentLevel = levelService.GetNextLevel();
             boardManager = new BoardManager(currentLevel);
             boardManager.Init();
@@ -251,6 +264,10 @@ namespace PuzzleParty.Board
                     // Do the first check to mark initially correct tiles without showing particles
                     CheckForCorrectlyPlacedTiles();
 
+                    // Initialize chain state based on initial correct count (no animation)
+                    int initialCorrectCount = boardManager.GetCorrectlyPlacedTilesCount();
+                    boardView.UpdateChainProgress(initialCorrectCount);
+
                     // Now disable first check flag so future checks will show particles
                     isFirstCheck = false;
 
@@ -304,6 +321,13 @@ namespace PuzzleParty.Board
                     }
                 }
             }
+
+            // Update chain progress visualization (only after initial setup)
+            if (!isFirstCheck)
+            {
+                int correctCount = boardManager.GetCorrectlyPlacedTilesCount();
+                boardView.UpdateChainProgress(correctCount);
+            }
         }
 
         void OnPuzzleSolved()
@@ -336,7 +360,7 @@ namespace PuzzleParty.Board
                 boardManager.GetInitialBoard(),
                 success: true,
                 coinsEarned: coinsEarned,
-                onRestart: RestartLevel,
+                onGiveUp: GiveUp,
                 onNextLevel: LoadNextLevel
             );
 
@@ -348,18 +372,57 @@ namespace PuzzleParty.Board
             // Disable input
             isInputEnabled = false;
 
-            Debug.Log("Out of moves! Game Over!");
+            Debug.Log("Out of moves!");
 
-            // Reset streak on failure
-            progressionService.ResetStreak();
+            // Check if EGP offer is available
+            EGPRound offer = egpService.GetCurrentOffer();
+            if (offer != null)
+            {
+                bool canAfford = egpService.CanAfford(progressionService);
+                Debug.Log($"EGP offer available: round {offer.round}, price {offer.price}, canAfford: {canAfford}");
 
-            // Show failure overlay
-            boardView.ShowGameEndOverlay(
-                success: false,
-                coinsEarned: 0,
-                onRestart: RestartLevel,
-                onNextLevel: LoadNextLevel
-            );
+                boardView.ShowEGPOverlay(
+                    offer,
+                    canAfford,
+                    onPurchase: OnEGPPurchase,
+                    onGiveUp: GiveUp
+                );
+            }
+            else
+            {
+                Debug.Log("No EGP offers remaining. Game Over!");
+
+                // Reset streak on failure
+                progressionService.ResetStreak();
+
+                // Show failure overlay
+                boardView.ShowGameEndOverlay(
+                    success: false,
+                    coinsEarned: 0,
+                    onGiveUp: GiveUp,
+                    onNextLevel: LoadNextLevel
+                );
+            }
+        }
+
+        void OnEGPPurchase()
+        {
+            EGPContents contents = egpService.Purchase(progressionService);
+            if (contents == null)
+            {
+                Debug.LogWarning("EGP purchase failed");
+                return;
+            }
+
+            Debug.Log($"EGP purchase successful: +{contents.extraMoves} moves");
+
+            // Add extra moves
+            boardManager.AddMoves(contents.extraMoves);
+            boardView.UpdateMovesDisplay(boardManager.MovesLeft);
+
+            // Hide overlay and resume gameplay
+            boardView.HideGameEndOverlay();
+            isInputEnabled = true;
         }
 
         void RestartLevel()
@@ -380,6 +443,13 @@ namespace PuzzleParty.Board
 
             // Reset and setup level again
             SetupLevel();
+        }
+
+        void GiveUp()
+        {
+            Debug.Log("Giving up, returning to main menu...");
+            progressionService.ResetStreak();
+            sceneLoader.LoadMainMenu();
         }
 
         void LoadNextLevel()
