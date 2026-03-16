@@ -53,13 +53,9 @@ namespace PuzzleParty.Board
                     tile.Column = j;
                     tile.Row = i;
 
-                    // Check if this tile should be locked
-                    tile.IsLocked = level.LockedTiles.Contains((i, j));
-
-                    if (tile.IsLocked)
-                    {
-                        Debug.Log($"Tile [{i},{j}] is marked as LOCKED");
-                    }
+                    // Don't set IsLocked here - locks are applied AFTER scramble
+                    // based on board POSITION, not tile identity
+                    tile.IsLocked = false;
 
                     col[j] = tile;
                     debug.Append("[" + i + ":" + j + "]");
@@ -75,6 +71,10 @@ namespace PuzzleParty.Board
 
             // Scramble and add holes
             ScrambleBoard();
+
+            // Apply locks to tiles at locked POSITIONS (after scramble)
+            ApplyLocksToPositions();
+
             PrintBoardSetup();
 
 
@@ -522,6 +522,46 @@ namespace PuzzleParty.Board
             }
 
             return count;
+        }
+
+        /// <summary>
+        /// Applies locks to tiles at the locked POSITIONS (not by tile identity).
+        /// Called after scramble so locks are at fixed board positions.
+        /// </summary>
+        private void ApplyLocksToPositions()
+        {
+            // Clear any existing locks first
+            for (int i = 0; i < board.Length; i++)
+            {
+                for (int j = 0; j < board[i].Length; j++)
+                {
+                    if (board[i][j] != null)
+                    {
+                        board[i][j].IsLocked = false;
+                    }
+                }
+            }
+
+            // Apply locks to tiles at the locked positions
+            foreach (var lockedPos in level.LockedTiles)
+            {
+                int row = lockedPos.row;
+                int col = lockedPos.column;
+
+                if (row >= 0 && row < board.Length && col >= 0 && col < board[row].Length)
+                {
+                    BoardTile tile = board[row][col];
+                    if (tile != null)
+                    {
+                        tile.IsLocked = true;
+                        Debug.Log($"Applied lock to tile at POSITION [{row},{col}] (tile identity: [{tile.Row},{tile.Column}])");
+                    }
+                    else
+                    {
+                        Debug.Log($"No tile at locked position [{row},{col}] (it's a hole)");
+                    }
+                }
+            }
         }
 
         /// <summary>

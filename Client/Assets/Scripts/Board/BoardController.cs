@@ -1,10 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 using PuzzleParty.EGP;
 using PuzzleParty.Levels;
 using PuzzleParty.Progressions;
@@ -22,10 +19,10 @@ namespace PuzzleParty.Board
 
     public class BoardController : MonoBehaviour
     {
-        // Start is called before the first frame update
-
         [SerializeField]
         private LevelUIElements uiElements;
+
+        [SerializeField] private InputHandler inputHandler;
 
         private ILevelService levelService;
         private IProgressionService progressionService;
@@ -35,27 +32,15 @@ namespace PuzzleParty.Board
         private BoardView boardView;
         private BoardManager boardManager;
         private Level currentLevel;
-        private bool isInputEnabled = false;
         private HashSet<string> tilesMarkedCorrect = new HashSet<string>();
-        private bool isFirstCheck = true; // Track if this is the first check after scramble
-
-        private Vector3 mouseDownPosition;
-        private bool isDragging = false;
-        private float dragThreshold = 0.2f;
+        private bool isFirstCheck = true;
 
         // Power-up tracking
         private bool hasUsedCompletePuzzle = false;
 
-        public BoardController()
-        {
-        }
-
         void Start()
         {
-            //Camera camera = GetComponent<Camera>();
-            float pixelsPerUnitOnScreen = Screen.height / (Camera.main.orthographicSize * 2);
-            Debug.Log("PPU:" + pixelsPerUnitOnScreen);
-            this.AddComponent<BoardView>();
+            inputHandler.OnSwipe += OnSwipe;
             levelService = ServiceLocator.GetInstance().Get<LevelService>();
             progressionService = ServiceLocator.GetInstance().Get<ProgressionService>();
             sceneLoader = ServiceLocator.GetInstance().Get<SceneLoader>();
@@ -67,57 +52,12 @@ namespace PuzzleParty.Board
             transitionService.FadeIn();
         }
 
-        // Update is called once per frame
-        void Update()
+        void OnSwipe(Vector3 startPos, MoveDirection direction)
         {
-            if (!isInputEnabled) return;
-
-            HandleInput();
-        }
-
-        void HandleInput()
-        {
-            if (Input.GetMouseButtonDown(0))
-            {
-                mouseDownPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-                mouseDownPosition.z = 0; // Ensure we're on the same z-plane as tiles
-                Debug.Log($"Mouse down at screen: {Input.mousePosition}, world: {mouseDownPosition}");
-                isDragging = true;
-            }
-
-            // Check while dragging if threshold is reached - auto-trigger move
-            if (Input.GetMouseButton(0) && isDragging)
-            {
-                Vector3 currentPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-                currentPosition.z = 0;
-
-                float dragDistance = Vector3.Distance(mouseDownPosition, currentPosition);
-                if (dragDistance >= dragThreshold)
-                {
-                    Debug.Log($"Drag threshold reached: {dragDistance}");
-                    ProcessSwipe(mouseDownPosition, currentPosition);
-                    isDragging = false; // Reset so we don't trigger again until next mouse down
-                }
-            }
-
-            if (Input.GetMouseButtonUp(0))
-            {
-                isDragging = false;
-            }
-        }
-
-        void ProcessSwipe(Vector3 startPos, Vector3 endPos)
-        {
-            // Find which tile was clicked
             BoardTile clickedTile = boardView.GetTileAtPosition(startPos);
+            if (clickedTile == null) return;
 
-            if (clickedTile == null)
-            {
-                Debug.Log("No tile clicked");
-                return;
-            }
-
-            // Get the actual tile from board (with IsLocked state)
+            // Get the tile from the board with its current locked state
             BoardTile[][] currentBoard = boardManager.GetCurrentBoard();
             BoardTile actualTile = null;
             for (int i = 0; i < currentBoard.Length; i++)
@@ -134,76 +74,23 @@ namespace PuzzleParty.Board
                 if (actualTile != null) break;
             }
 
-            if (actualTile == null)
+            if (actualTile == null) return;
+
+            if (boardManager.CanMoveTile(actualTile, direction))
             {
-                Debug.Log("Could not find tile in board");
-                return;
-            }
+                boardManager.MoveTile(actualTile, direction);
 
-            clickedTile = actualTile;
-
-            // Calculate swipe direction
-            Vector3 swipeVector = endPos - startPos;
-            float swipeDistance = swipeVector.magnitude;
-
-            if (swipeDistance < dragThreshold)
-            {
-                Debug.Log("Swipe too short");
-                return;
-            }
-
-            // Determine primary direction
-            MoveDirection direction = GetSwipeDirection(swipeVector);
-
-            // Ask BoardManager if move is allowed
-            if (boardManager.CanMoveTile(clickedTile, direction))
-            {
-                Debug.Log($"Moving tile [{clickedTile.Row},{clickedTile.Column}] in direction {direction}");
-                boardManager.MoveTile(clickedTile, direction);
-
-                // Update the view based on new board state
-                // Check for correct tiles AFTER animation completes
                 boardView.UpdateTilePositions(boardManager.GetCurrentBoard(), () => {
-                    // Animation complete, now check for correctly placed tiles
                     CheckForCorrectlyPlacedTiles();
-
-                    // Check for tiles that can be unlocked
                     CheckAndUnlockTiles();
 
-                    // Check if puzzle is solved
                     if (boardManager.IsSolved)
-                    {
                         OnPuzzleSolved();
-                    }
-                    // Check if out of moves
                     else if (boardManager.MovesLeft <= 0)
-                    {
                         OnOutOfMoves();
-                    }
                 });
 
                 boardView.UpdateMovesDisplay(boardManager.MovesLeft);
-            }
-            else
-            {
-                Debug.Log($"Cannot move tile [{clickedTile.Row},{clickedTile.Column}] in direction {direction}");
-            }
-        }
-
-        MoveDirection GetSwipeDirection(Vector3 swipeVector)
-        {
-            float absX = Mathf.Abs(swipeVector.x);
-            float absY = Mathf.Abs(swipeVector.y);
-
-            if (absX > absY)
-            {
-                // Horizontal swipe
-                return swipeVector.x > 0 ? MoveDirection.RIGHT : MoveDirection.LEFT;
-            }
-            else
-            {
-                // Vertical swipe
-                return swipeVector.y > 0 ? MoveDirection.UP : MoveDirection.DOWN;
             }
         }
 
@@ -217,7 +104,6 @@ namespace PuzzleParty.Board
             // Get current streak from progression
             Progression progression = progressionService.GetProgression();
             int currentStreak = progression.streak;
-            Debug.Log($"Current streak: {currentStreak}");
 
             boardView = GetComponent<BoardView>();
             boardView.Setup(currentLevel, boardManager.GetInitialBoard(), uiElements, currentStreak);
@@ -231,7 +117,7 @@ namespace PuzzleParty.Board
             // Reset tracking state
             tilesMarkedCorrect.Clear();
             isFirstCheck = true;
-            isInputEnabled = false;
+            inputHandler.DisableInput();
 
             // Reset power-up usage for this level
             hasUsedCompletePuzzle = false;
@@ -252,15 +138,12 @@ namespace PuzzleParty.Board
             {
                 boardManager.AddMoves(20);
                 boardView.UpdateMovesDisplay(boardManager.MovesLeft);
-                Debug.Log("Streak bonus: Added 20 moves!");
             }
 
             // Start the animation sequence with welcome text and scaling
             boardView.StartAnimation(() => {
                 // After showing complete puzzle, animate the scramble
                 boardView.AnimateScramble(boardManager.GetCurrentBoard(), () => {
-                    Debug.Log("Animation sequence complete - game ready to play!");
-
                     // Do the first check to mark initially correct tiles without showing particles
                     CheckForCorrectlyPlacedTiles();
 
@@ -272,7 +155,7 @@ namespace PuzzleParty.Board
                     isFirstCheck = false;
 
                     // Enable input after animations complete
-                    isInputEnabled = true;
+                    inputHandler.EnableInput();
                 });
             });
         }
@@ -297,15 +180,9 @@ namespace PuzzleParty.Board
                         {
                             tilesMarkedCorrect.Add(tileKey);
 
-                            // Only show particle effect if this is not the first check
                             if (!isFirstCheck)
                             {
                                 boardView.ShowCorrectTileEffect(tile.Row, tile.Column);
-                                Debug.Log($"Tile [{tile.Row},{tile.Column}] placed correctly for the first time!");
-                            }
-                            else
-                            {
-                                Debug.Log($"Tile [{tile.Row},{tile.Column}] already correct after scramble");
                             }
                         }
                     }
@@ -332,10 +209,7 @@ namespace PuzzleParty.Board
 
         void OnPuzzleSolved()
         {
-            // Disable input
-            isInputEnabled = false;
-
-            Debug.Log("Puzzle solved! Congratulations!");
+            inputHandler.DisableInput();
 
             // Calculate coins earned (1 coin per remaining move)
             int coinsEarned = boardManager.MovesLeft;
@@ -352,9 +226,6 @@ namespace PuzzleParty.Board
             // Increment streak on win
             progressionService.IncrementStreak();
 
-            Debug.Log($"Earned {coinsEarned} coins! Total coins: {progression.coins}");
-            Debug.Log($"About to show overlay. boardView is null: {boardView == null}");
-
             // Fill holes to show complete image, then show success overlay
             boardView.FillHolesAndShowOverlay(
                 boardManager.GetInitialBoard(),
@@ -363,24 +234,17 @@ namespace PuzzleParty.Board
                 onGiveUp: GiveUp,
                 onNextLevel: LoadNextLevel
             );
-
-            Debug.Log("FillHolesAndShowOverlay called");
         }
 
         void OnOutOfMoves()
         {
-            // Disable input
-            isInputEnabled = false;
-
-            Debug.Log("Out of moves!");
+            inputHandler.DisableInput();
 
             // Check if EGP offer is available
             EGPRound offer = egpService.GetCurrentOffer();
             if (offer != null)
             {
                 bool canAfford = egpService.CanAfford(progressionService);
-                Debug.Log($"EGP offer available: round {offer.round}, price {offer.price}, canAfford: {canAfford}");
-
                 boardView.ShowEGPOverlay(
                     offer,
                     canAfford,
@@ -390,9 +254,6 @@ namespace PuzzleParty.Board
             }
             else
             {
-                Debug.Log("No EGP offers remaining. Game Over!");
-
-                // Reset streak on failure
                 progressionService.ResetStreak();
 
                 // Show failure overlay
@@ -414,21 +275,17 @@ namespace PuzzleParty.Board
                 return;
             }
 
-            Debug.Log($"EGP purchase successful: +{contents.extraMoves} moves");
-
             // Add extra moves
             boardManager.AddMoves(contents.extraMoves);
             boardView.UpdateMovesDisplay(boardManager.MovesLeft);
 
             // Hide overlay and resume gameplay
             boardView.HideGameEndOverlay();
-            isInputEnabled = true;
+            inputHandler.EnableInput();
         }
 
         void RestartLevel()
         {
-            Debug.Log("Restarting level...");
-
             // Reset streak on manual restart
             progressionService.ResetStreak();
 
@@ -447,15 +304,12 @@ namespace PuzzleParty.Board
 
         void GiveUp()
         {
-            Debug.Log("Giving up, returning to main menu...");
             progressionService.ResetStreak();
             sceneLoader.LoadMainMenu();
         }
 
         void LoadNextLevel()
         {
-            Debug.Log("Loading next level...");
-
             // Set flag to indicate we just completed a level
             PlayerPrefs.SetInt("JustCompletedLevel", 1);
             PlayerPrefs.Save();
@@ -477,8 +331,6 @@ namespace PuzzleParty.Board
 
                 // Enable button (will be disabled after first use)
                 uiElements.completePuzzleButton.interactable = true;
-
-                Debug.Log("Complete Puzzle power-up button setup complete");
             }
             else
             {
@@ -494,8 +346,6 @@ namespace PuzzleParty.Board
                 return;
             }
 
-            Debug.Log("Complete Puzzle power-up activated!");
-
             // Mark as used
             hasUsedCompletePuzzle = true;
 
@@ -506,14 +356,12 @@ namespace PuzzleParty.Board
             }
 
             // Disable input during power-up
-            isInputEnabled = false;
+            inputHandler.DisableInput();
 
             // Show complete puzzle overlay for 3 seconds
             boardView.ShowCompletePuzzleOverlay(currentLevel.LevelSprite, () =>
             {
-                // Re-enable input after overlay disappears
-                isInputEnabled = true;
-                Debug.Log("Complete Puzzle power-up finished");
+                inputHandler.EnableInput();
             });
         }
 
@@ -523,8 +371,6 @@ namespace PuzzleParty.Board
 
             if (unlockedTiles.Count > 0)
             {
-                Debug.Log($"Unlocked {unlockedTiles.Count} tiles");
-
                 // Trigger unlock animation for each tile
                 foreach (var tile in unlockedTiles)
                 {

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using PuzzleParty.Progressions;
@@ -12,16 +11,9 @@ namespace PuzzleParty.Levels
 
     public Level GetLevel(int levelId)
     {
-        
-        string imagePath = Path.Combine(Application.streamingAssetsPath, "/levels/level" + levelId + "/level" + levelId + ".png");
-        string confPath = Path.Combine(Application.streamingAssetsPath, "/levels/level" + levelId + "/level" + levelId +".json");
-        
         LevelConf lc = LoadLevelConf(levelId);
         Sprite sprite = LoadLevelImage(levelId);
 
-        Debug.Log("LevelConf: id:"+ levelId +
-            " rows: "+lc.rows);
-        
         Level level = new Level();
         level.Id = lc.id;
         level.Columns = lc.columns;
@@ -31,25 +23,10 @@ namespace PuzzleParty.Levels
         level.LevelSprite = sprite;
         level.Name = lc.name;
 
-        // Load locked tiles if present
-        Debug.Log($"LevelConf locked_tiles is null: {lc.locked_tiles == null}");
-        if (lc.locked_tiles != null)
-        {
-            Debug.Log($"LevelConf locked_tiles length: {lc.locked_tiles.Length}");
-        }
-
         if (lc.locked_tiles != null && lc.locked_tiles.Length > 0)
         {
             foreach (var lockedTile in lc.locked_tiles)
-            {
-                Debug.Log($"Loading locked tile: row={lockedTile.row}, column={lockedTile.column}");
                 level.LockedTiles.Add((lockedTile.row, lockedTile.column));
-            }
-            Debug.Log($"Loaded {level.LockedTiles.Count} locked tiles for level {levelId}");
-        }
-        else
-        {
-            Debug.Log($"No locked tiles defined for level {levelId}");
         }
 
         return level;
@@ -94,38 +71,5 @@ namespace PuzzleParty.Levels
 
     }
 
-    private void PopulateLevelShardDictionary(Level level)
-    {
-        Dictionary<int,Sprite> sprites = new Dictionary<int, Sprite>();
-
-        for(int i=0; i < level.Rows; i++)
-        {
-            for(int j=0; j < level.Columns; j++)
-            {
-                string id = ""+i+"_"+j;
-
-            }
-        }
-    }
-
-    private Texture2D CopyRegion(int row, int col, Sprite original)
-    {
-        int pixelsWidth = 256;
-
-        Texture2D orgTex = original.texture;
-       
-        Texture2D newTex = new Texture2D(GetSize(row, col), GetSize(row, col), orgTex.format, false);
-        Color[] pixels = orgTex.GetPixels(0, 0, pixelsWidth, pixelsWidth);
-        newTex.SetPixels(pixels);
-        newTex.Apply();
-        return newTex;
-    
-    }
-
-    private int GetSize(int rows, int cols)
-    {
-        return 256;
-
-    }
     }
 }

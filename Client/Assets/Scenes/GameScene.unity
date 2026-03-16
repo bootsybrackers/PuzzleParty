@@ -1102,6 +1102,9 @@ GameObject:
   - component: {fileID: 521088116}
   - component: {fileID: 521088115}
   - component: {fileID: 521088117}
+  - component: {fileID: 521088118}
+  - component: {fileID: 521088119}
+  - component: {fileID: 521088120}
   m_Layer: 5
   m_Name: Board
   m_TagString: Untagged
@@ -1184,23 +1187,55 @@ MonoBehaviour:
     levelBannerText: {fileID: 91654546}
     levelBannerItemsContainer: {fileID: 1063238965}
     correctTileParticlesPrefab: {fileID: 2441518679886755158, guid: ff854f6679e6a43f7b9e632190024fbb, type: 3}
-    gameEndOverlay: {fileID: 1603650654}
-    gameEndSuccessPanel: {fileID: 480496805}
-    gameEndTitle: {fileID: 1832203996}
-    gameEndCoinsText: {fileID: 722794813}
-    nextLevelButton: {fileID: 814669104}
-    gameEndFailPanel: {fileID: 776367434}
-    gameEndTitleFail: {fileID: 2005966341}
-    giveUpButton: {fileID: 1998247844}
     completePuzzleButton: {fileID: 424362146}
     slotButton: {fileID: 1672951834}
     streakIcons:
     - {fileID: 1782399329}
     - {fileID: 1654765085}
     - {fileID: 475322607}
-    egpContinueButton: {fileID: 269269465}
-    egpPriceText: {fileID: 252035895}
-    egpOfferText: {fileID: 1681537035}
+  inputHandler: {fileID: 521088119}
+--- !u!114 &521088118
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 521088113}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 99f89c1c915114e7487a9700502ba0ed, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PuzzleParty.Board.BoardView
+  sparkleTrailEffectPrefab: {fileID: 3012265732161227908, guid: 82d7f1282987048ac94a7e1d714c4e0a, type: 3}
+  gameEndOverlay: {fileID: 730600696}
+  chainSystem: {fileID: 521088120}
+--- !u!114 &521088119
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 521088113}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b1ce3b7bd07f429abe03752c3a03ff0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PuzzleParty.Board.InputHandler
+  dragThreshold: 0.2
+--- !u!114 &521088120
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 521088113}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57dd3d75207b74081a037e3826337d00, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PuzzleParty.Board.ChainSystem
+  chainBreakEffectPrefab: {fileID: 6309499852491645122, guid: 37c72dffdabab488fa1b146552613c0a, type: 3}
+  chainOverlayPrefab: {fileID: 5431794001469089551, guid: 29cc729968b124c84ae45a008a308020, type: 3}
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -1446,6 +1481,7 @@ GameObject:
   - component: {fileID: 730600693}
   - component: {fileID: 730600695}
   - component: {fileID: 730600694}
+  - component: {fileID: 730600696}
   m_Layer: 6
   m_Name: GameEndOverlay
   m_TagString: Untagged
@@ -1512,6 +1548,32 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 730600692}
   m_CullTransparentMesh: 1
+--- !u!114 &730600696
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 730600692}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44a049919c2bf4cfc97ff0d4aa361d28, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PuzzleParty.Board.GameEndOverlayController
+  successPanel: {fileID: 480496805}
+  failPanel: {fileID: 776367434}
+  titleText: {fileID: 1832203996}
+  nextLevelButton: {fileID: 814669104}
+  coinsText: {fileID: 722794813}
+  titleTextFail: {fileID: 2005966341}
+  giveUpButton: {fileID: 1998247844}
+  egpOfferText: {fileID: 1681537035}
+  egpPriceText: {fileID: 252035895}
+  egpContinueButton: {fileID: 269269465}
+  confettiEffectPrefab: {fileID: 2613060606154364293, guid: 92d811a612a4b4739a85f5a8d2613684, type: 3}
+  victorySparkleEffectPrefab: {fileID: 3725888100699679227, guid: a29f88b419e5143909a14d3ee804ffdb, type: 3}
+  victoryTextPunchScale: 1.3
+  victoryTextPunchDuration: 0.4
 --- !u!1 &776367434
 GameObject:
   m_ObjectHideFlags: 0
@@ -3600,7 +3662,7 @@ RectTransform:
   m_GameObject: {fileID: 1860673977}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1787352702}
