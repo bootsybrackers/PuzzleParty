@@ -1,13 +1,18 @@
 #!/bin/bash
 set -e
 
-IMAGE="bootsybrackers/puzzleparty-server"
+SERVER_IMAGE="bootsybrackers/puzzleparty-server"
+WEB_IMAGE="bootsybrackers/puzzleparty-web"
 
-# Usage: ./build.sh <version>
+# Usage: ./build.sh <version> [server|web|all]
 VERSION=$1
+TARGET=${2:-all}
 
 if [ -z "$VERSION" ]; then
-  echo "Error: No version specified. Usage: ./build.sh <version> (e.g. ./build.sh 1.0.3)"
+  echo "Error: No version specified. Usage: ./build.sh <version> [server|web|all]"
+  echo "  e.g. ./build.sh 1.0.3"
+  echo "  e.g. ./build.sh 1.0.3 server"
+  echo "  e.g. ./build.sh 1.0.3 web"
   exit 1
 fi
 
@@ -26,17 +31,30 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "==> Building $IMAGE:$TAG for linux/amd64..."
-cd Server
-docker buildx build --platform linux/amd64 \
-  -t $IMAGE:$TAG \
-  -t $IMAGE:latest \
-  --push \
-  .
-cd ..
+if [ "$TARGET" = "server" ] || [ "$TARGET" = "all" ]; then
+  echo "==> Building $SERVER_IMAGE:$TAG for linux/amd64..."
+  cd Server
+  docker buildx build --platform linux/amd64 \
+    -t $SERVER_IMAGE:$TAG \
+    -t $SERVER_IMAGE:latest \
+    --push \
+    .
+  cd ..
+fi
+
+if [ "$TARGET" = "web" ] || [ "$TARGET" = "all" ]; then
+  echo "==> Building $WEB_IMAGE:$TAG for linux/amd64..."
+  cd Web
+  docker buildx build --platform linux/amd64 \
+    -t $WEB_IMAGE:$TAG \
+    -t $WEB_IMAGE:latest \
+    --push \
+    .
+  cd ..
+fi
 
 echo "==> Tagging git commit as $TAG..."
 git tag $TAG
 git push origin $TAG
 
-echo "==> Done! Image $IMAGE:$TAG pushed to Docker Hub."
+echo "==> Done! Version $TAG pushed to Docker Hub."
