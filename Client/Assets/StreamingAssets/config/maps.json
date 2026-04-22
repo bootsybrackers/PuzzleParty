@@ -4,21 +4,21 @@
       "id": 1,
       "name": "European Classics",
       "startLevel": 1,
-      "endLevel": 6,
+      "endLevel": 12,
       "theme": ""
     },
     {
       "id": 2,
       "name": "American Pearls",
-      "startLevel": 7,
-      "endLevel": 12,
+      "startLevel": 13,
+      "endLevel": 24,
       "theme": ""
     },
     {
       "id": 3,
       "name": "South American Capitals",
-      "startLevel": 13,
-      "endLevel": 18,
+      "startLevel": 25,
+      "endLevel": 36,
       "theme": ""
     }
   ]

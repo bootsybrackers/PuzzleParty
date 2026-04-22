@@ -830,10 +830,10 @@ RectTransform:
   - {fileID: 1026956304}
   m_Father: {fileID: 1392642747}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
+  m_SizeDelta: {x: -788, y: -1820}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &424362144
 GameObject:
@@ -1059,7 +1059,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &480496806
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1105,6 +1105,7 @@ GameObject:
   - component: {fileID: 521088118}
   - component: {fileID: 521088119}
   - component: {fileID: 521088120}
+  - component: {fileID: 521088121}
   m_Layer: 5
   m_Name: Board
   m_TagString: Untagged
@@ -1129,7 +1130,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 774, y: 1344}
+  m_SizeDelta: {x: 774, y: 1152}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &521088115
 MonoBehaviour:
@@ -1209,6 +1210,7 @@ MonoBehaviour:
   sparkleTrailEffectPrefab: {fileID: 3012265732161227908, guid: 82d7f1282987048ac94a7e1d714c4e0a, type: 3}
   gameEndOverlay: {fileID: 730600696}
   chainSystem: {fileID: 521088120}
+  iceSystem: {fileID: 521088121}
 --- !u!114 &521088119
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1236,6 +1238,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PuzzleParty.Board.ChainSystem
   chainBreakEffectPrefab: {fileID: 6309499852491645122, guid: 37c72dffdabab488fa1b146552613c0a, type: 3}
   chainOverlayPrefab: {fileID: 5431794001469089551, guid: 29cc729968b124c84ae45a008a308020, type: 3}
+--- !u!114 &521088121
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 521088113}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bec95cd9df96b43c6bc0647cddc48acb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PuzzleParty.Board.IceSystem
+  iceOverlayPrefab: {fileID: 1551676224807136903, guid: 31780f2d665004aa1aa5be39ea59db50, type: 3}
+  iceBreakEffectPrefab: {fileID: 498064758327044615, guid: 40409d748c8ba460fb94d35be48a454f, type: 3}
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -1261,7 +1277,7 @@ Light:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 705507993}
   m_Enabled: 1
-  serializedVersion: 12
+  serializedVersion: 13
   m_Type: 1
   m_Color: {r: 1, g: 0.95686275, b: 0.8392157, a: 1}
   m_Intensity: 1
@@ -1313,7 +1329,7 @@ Light:
   m_UseBoundingSphereOverride: 0
   m_UseViewFrustumForShadowCasterCull: 1
   m_ForceVisible: 0
-  m_ShadowRadius: 0
+  m_ShapeRadius: 0
   m_ShadowAngle: 0
   m_LightUnit: 1
   m_LuxAtDistance: 1
@@ -1590,7 +1606,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &776367435
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1659,7 +1675,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: -500}
-  m_SizeDelta: {x: 400, y: 100}
+  m_SizeDelta: {x: 600, y: 200}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &814669104
 MonoBehaviour:
@@ -2769,6 +2785,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
+  m_UseReflectionProbes: 0
   m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
@@ -3648,6 +3665,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
+  m_UseReflectionProbes: 0
   m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
@@ -3751,6 +3769,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
+  m_UseReflectionProbes: 0
   m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0

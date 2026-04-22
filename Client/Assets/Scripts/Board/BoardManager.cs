@@ -75,6 +75,9 @@ namespace PuzzleParty.Board
             // Apply locks to tiles at locked POSITIONS (after scramble)
             ApplyLocksToPositions();
 
+            // Apply ice to all tiles in ice rows (after scramble)
+            ApplyIceToRows();
+
             PrintBoardSetup();
 
 
@@ -93,181 +96,237 @@ namespace PuzzleParty.Board
 
         private void ScrambleBoard()
         {
-            // First, set up the board with holes at the end positions
-            int totalPositions = level.Rows * level.Columns;
+            HashSet<int> iceRowSet = GetIceRowSet();
 
-            // Identify where holes should be (last N positions)
+            var icedRows = new List<int>();
+            var nonIcedRows = new List<int>();
             for (int i = 0; i < level.Rows; i++)
             {
-                for (int j = 0; j < level.Columns; j++)
-                {
-                    int currentPosition = i * level.Columns + j;
-
-                    // If this is one of the last positions, make it a hole
-                    if (currentPosition >= totalPositions - level.Holes)
-                    {
-                        board[i][j] = null;
-                    }
-                }
+                if (iceRowSet.Contains(i)) icedRows.Add(i);
+                else nonIcedRows.Add(i);
             }
 
-            // Try scrambling until we have less than 2 tiles in correct positions
-            int maxAttempts = 20;
-            int attempt = 0;
-            System.Random rnd = new System.Random();
-            BoardTile[][] bestBoard = null;
-            int lowestCorrectTiles = int.MaxValue;
+            // Place holes: exactly 1 in the non-iced section, rest in iced section
+            PlaceHoles(nonIcedRows, icedRows);
 
-            while (attempt < maxAttempts)
-            {
-                // Make a copy of the current board to potentially restore
-                BoardTile[][] boardCopy = CloneBoard(board);
+            // Scramble each section independently — not animated, not visible to player
+            if (nonIcedRows.Count > 0)
+                ScrambleSection(nonIcedRows);
+            if (icedRows.Count > 0)
+                ScrambleIcedSection(icedRows);
+        }
 
-                // Scramble with random valid moves
-                int scrambleMoves = CalculateScrambleMoves();
-
-                Debug.Log($"Scrambling attempt {attempt + 1} with {scrambleMoves} random moves");
-
-                // Track last move to avoid immediate reversal
-                (int row, int col, MoveDirection direction)? lastMove = null;
-
-                for (int moveCount = 0; moveCount < scrambleMoves; moveCount++)
+        private void PlaceHoles(List<int> nonIcedRows, List<int> icedRows)
+        {
+            // Step 1: Place all holes at the last N global positions (row-major, bottom-right first)
+            int placed = 0;
+            for (int i = level.Rows - 1; i >= 0 && placed < level.Holes; i--)
+                for (int j = level.Columns - 1; j >= 0 && placed < level.Holes; j--)
                 {
-                    // Find all holes
-                    List<(int row, int col)> holes = new List<(int row, int col)>();
-                    for (int i = 0; i < level.Rows; i++)
-                    {
-                        for (int j = 0; j < level.Columns; j++)
-                        {
-                            if (board[i][j] == null)
-                            {
-                                holes.Add((i, j));
-                            }
-                        }
-                    }
-
-                    // For each hole, find movable tiles (tiles adjacent to the hole)
-                    List<(int row, int col, MoveDirection direction)> possibleMoves = new List<(int row, int col, MoveDirection direction)>();
-
-                    foreach (var hole in holes)
-                    {
-                        int holeRow = hole.row;
-                        int holeCol = hole.col;
-
-                        // Check all four directions for tiles that can move into this hole
-                        // UP: tile below the hole can move up
-                        if (holeRow + 1 < level.Rows && board[holeRow + 1][holeCol] != null)
-                        {
-                            possibleMoves.Add((holeRow + 1, holeCol, MoveDirection.UP));
-                        }
-                        // DOWN: tile above the hole can move down
-                        if (holeRow - 1 >= 0 && board[holeRow - 1][holeCol] != null)
-                        {
-                            possibleMoves.Add((holeRow - 1, holeCol, MoveDirection.DOWN));
-                        }
-                        // LEFT: tile to the right of the hole can move left
-                        if (holeCol + 1 < level.Columns && board[holeRow][holeCol + 1] != null)
-                        {
-                            possibleMoves.Add((holeRow, holeCol + 1, MoveDirection.LEFT));
-                        }
-                        // RIGHT: tile to the left of the hole can move right
-                        if (holeCol - 1 >= 0 && board[holeRow][holeCol - 1] != null)
-                        {
-                            possibleMoves.Add((holeRow, holeCol - 1, MoveDirection.RIGHT));
-                        }
-                    }
-
-                    // Filter out moves that would reverse the last move
-                    if (lastMove.HasValue)
-                    {
-                        MoveDirection oppositeDirection = GetOppositeDirection(lastMove.Value.direction);
-                        possibleMoves.RemoveAll(m =>
-                            m.row == lastMove.Value.row &&
-                            m.col == lastMove.Value.col &&
-                            m.direction == oppositeDirection);
-                    }
-
-                    // Pick a random valid move
-                    if (possibleMoves.Count > 0)
-                    {
-                        int randomIndex = rnd.Next(possibleMoves.Count);
-                        var move = possibleMoves[randomIndex];
-
-                        // Execute the move (swap tile with hole)
-                        BoardTile tileToMove = board[move.row][move.col];
-
-                        int newRow = move.row;
-                        int newCol = move.col;
-
-                        switch (move.direction)
-                        {
-                            case MoveDirection.UP:
-                                newRow--;
-                                break;
-                            case MoveDirection.DOWN:
-                                newRow++;
-                                break;
-                            case MoveDirection.LEFT:
-                                newCol--;
-                                break;
-                            case MoveDirection.RIGHT:
-                                newCol++;
-                                break;
-                        }
-
-                        // Swap tile with hole
-                        board[newRow][newCol] = tileToMove;
-                        board[move.row][move.col] = null;
-
-                        // Remember this move
-                        lastMove = move;
-                    }
+                    board[i][j] = null;
+                    placed++;
                 }
 
-                // Check how many tiles are in correct positions
-                int correctTiles = GetCorrectlyPlacedTilesCount();
-                Debug.Log($"After scrambling: {correctTiles} tiles in correct position");
+            // Step 2: If the non-iced section has no holes after placement, create one.
+            // This happens when ice is at the bottom — holes land in the iced rows.
+            // Take the bottom-right tile of the non-iced section and move it into the
+            // last iced hole, leaving a hole in the non-iced section instead.
+            if (nonIcedRows.Count == 0 || icedRows.Count == 0) return;
 
-                // Track the best (fewest correct tiles) attempt
-                if (correctTiles < lowestCorrectTiles)
+            bool hasHoleInNonIced = false;
+            foreach (int r in nonIcedRows)
+                for (int c = 0; c < level.Columns; c++)
+                    if (board[r][c] == null) { hasHoleInNonIced = true; break; }
+
+            if (hasHoleInNonIced) return; // Non-iced already has a hole, nothing to do
+
+            // Find the last (bottom-right) tile in the non-iced section
+            int lastNonIcedRow = -1, lastNonIcedCol = -1;
+            for (int i = nonIcedRows.Count - 1; i >= 0 && lastNonIcedRow == -1; i--)
+                for (int j = level.Columns - 1; j >= 0 && lastNonIcedRow == -1; j--)
+                    if (board[nonIcedRows[i]][j] != null)
+                    {
+                        lastNonIcedRow = nonIcedRows[i];
+                        lastNonIcedCol = j;
+                    }
+
+            // Find the last hole in the iced section to place the non-iced tile into
+            int holeRow = -1, holeCol = -1;
+            for (int i = icedRows.Count - 1; i >= 0 && holeRow == -1; i--)
+                for (int j = level.Columns - 1; j >= 0 && holeRow == -1; j--)
+                    if (board[icedRows[i]][j] == null)
+                    {
+                        holeRow = icedRows[i];
+                        holeCol = j;
+                    }
+
+            if (lastNonIcedRow == -1 || holeRow == -1)
+            {
+                Debug.LogWarning("PlaceHoles: could not find non-iced tile or iced hole to swap");
+                return;
+            }
+
+            // Move the non-iced tile into the iced hole, leaving a hole in the non-iced section
+            board[holeRow][holeCol] = board[lastNonIcedRow][lastNonIcedCol];
+            board[lastNonIcedRow][lastNonIcedCol] = null;
+        }
+
+        /// <summary>
+        /// Scrambles tiles within the given rows only — holes never cross section boundaries.
+        /// </summary>
+        private void ScrambleSection(List<int> rowIndices)
+        {
+            var rowSet = new HashSet<int>(rowIndices);
+            System.Random rnd = new System.Random();
+
+            int tilesInSection = 0;
+            foreach (int r in rowIndices)
+                for (int c = 0; c < level.Columns; c++)
+                    if (board[r][c] != null) tilesInSection++;
+
+            int scrambleMoves = tilesInSection * 4;
+
+            int maxAttempts = 15;
+            BoardTile[][] bestBoard = null;
+            int lowestCorrect = int.MaxValue;
+
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                BoardTile[][] boardCopy = CloneBoard(board);
+                (int row, int col, MoveDirection dir)? lastMove = null;
+
+                for (int m = 0; m < scrambleMoves; m++)
                 {
-                    lowestCorrectTiles = correctTiles;
+                    var holes = new List<(int row, int col)>();
+                    foreach (int r in rowIndices)
+                        for (int c = 0; c < level.Columns; c++)
+                            if (board[r][c] == null) holes.Add((r, c));
+
+                    if (holes.Count == 0) break;
+
+                    var moves = new List<(int row, int col, MoveDirection dir)>();
+                    foreach (var (hr, hc) in holes)
+                    {
+                        if (rowSet.Contains(hr + 1) && hr + 1 < level.Rows && board[hr + 1][hc] != null)
+                            moves.Add((hr + 1, hc, MoveDirection.UP));
+                        if (rowSet.Contains(hr - 1) && hr - 1 >= 0 && board[hr - 1][hc] != null)
+                            moves.Add((hr - 1, hc, MoveDirection.DOWN));
+                        if (hc + 1 < level.Columns && board[hr][hc + 1] != null)
+                            moves.Add((hr, hc + 1, MoveDirection.LEFT));
+                        if (hc - 1 >= 0 && board[hr][hc - 1] != null)
+                            moves.Add((hr, hc - 1, MoveDirection.RIGHT));
+                    }
+
+                    if (lastMove.HasValue)
+                    {
+                        MoveDirection opp = GetOppositeDirection(lastMove.Value.dir);
+                        moves.RemoveAll(mv => mv.row == lastMove.Value.row && mv.col == lastMove.Value.col && mv.dir == opp);
+                    }
+
+                    if (moves.Count == 0) break;
+
+                    var move = moves[rnd.Next(moves.Count)];
+                    int newRow = move.row + (move.dir == MoveDirection.UP ? -1 : move.dir == MoveDirection.DOWN ? 1 : 0);
+                    int newCol = move.col + (move.dir == MoveDirection.LEFT ? -1 : move.dir == MoveDirection.RIGHT ? 1 : 0);
+
+                    board[newRow][newCol] = board[move.row][move.col];
+                    board[move.row][move.col] = null;
+                    lastMove = move;
+                }
+
+                int correct = CountCorrectInSection(rowIndices);
+                if (correct < lowestCorrect)
+                {
+                    lowestCorrect = correct;
                     bestBoard = CloneBoard(board);
                 }
 
-                if (correctTiles < 2)
-                {
-                    // Good scramble! Less than 2 tiles in correct positions
-                    Debug.Log("Scramble successful!");
-                    break;
-                }
-
-                // Not good enough, restore and try again
+                if (correct < 2) break;
                 board = boardCopy;
-                attempt++;
             }
 
-            // Use the best scramble we found
-            if (attempt >= maxAttempts && bestBoard != null)
+            if (lowestCorrect >= 2 && bestBoard != null)
             {
-                Debug.LogWarning($"Could not achieve scramble with less than 2 correct tiles after {maxAttempts} attempts. Using best attempt with {lowestCorrectTiles} correct tiles.");
+                Debug.LogWarning($"ScrambleSection: best attempt had {lowestCorrect} correct tiles in section. Using it anyway.");
                 board = bestBoard;
             }
         }
 
-        private int CalculateScrambleMoves()
+        /// <summary>
+        /// Scrambles the iced section. When the section has no holes (ice on top rows,
+        /// all holes fell to non-iced rows), a temporary blank is created so sliding
+        /// scramble can run, then the saved tile is restored at the blank's final position.
+        /// With 2+ blanks available in the non-iced section after ice breaks, any resulting
+        /// permutation is solvable in phase 2.
+        /// </summary>
+        private void ScrambleIcedSection(List<int> icedRows)
         {
-            // Calculate number of scramble moves based on board size and difficulty
-            // Smaller boards need fewer moves, larger boards need more
-            int totalTiles = (level.Rows * level.Columns) - level.Holes;
+            bool hasHole = false;
+            foreach (int r in icedRows)
+            {
+                for (int c = 0; c < level.Columns; c++)
+                    if (board[r][c] == null) { hasHole = true; break; }
+                if (hasHole) break;
+            }
 
-            // Base moves: 3-5 times the number of tiles
-            // This ensures good scrambling without making it too chaotic
-            int minMoves = totalTiles * 3;
-            int maxMoves = totalTiles * 5;
+            if (hasHole)
+            {
+                ScrambleSection(icedRows);
+                return;
+            }
 
-            System.Random rnd = new System.Random();
-            return rnd.Next(minMoves, maxMoves + 1);
+            // No hole in section — temporarily remove the last iced tile to create one
+            int tempRow = -1, tempCol = -1;
+            for (int i = icedRows.Count - 1; i >= 0 && tempRow == -1; i--)
+                for (int j = level.Columns - 1; j >= 0 && tempRow == -1; j--)
+                    if (board[icedRows[i]][j] != null)
+                    {
+                        tempRow = icedRows[i];
+                        tempCol = j;
+                    }
+
+            if (tempRow == -1) return;
+
+            BoardTile savedTile = board[tempRow][tempCol];
+            board[tempRow][tempCol] = null;
+
+            ScrambleSection(icedRows);
+
+            // Find where the blank ended up and restore the saved tile there
+            int holeRow = -1, holeCol = -1;
+            foreach (int r in icedRows)
+            {
+                for (int c = 0; c < level.Columns; c++)
+                    if (board[r][c] == null) { holeRow = r; holeCol = c; break; }
+                if (holeRow != -1) break;
+            }
+
+            if (holeRow != -1)
+                board[holeRow][holeCol] = savedTile;
+            else
+                board[tempRow][tempCol] = savedTile; // fallback
+        }
+
+        private int CountCorrectInSection(List<int> rowIndices)
+        {
+            int count = 0;
+            foreach (int r in rowIndices)
+                for (int c = 0; c < level.Columns; c++)
+                {
+                    BoardTile tile = board[r][c];
+                    if (tile != null && tile.Row == r && tile.Column == c)
+                        count++;
+                }
+            return count;
+        }
+
+        private HashSet<int> GetIceRowSet()
+        {
+            var set = new HashSet<int>();
+            if (level.IceRows != null)
+                foreach (int r in level.IceRows)
+                    set.Add(r);
+            return set;
         }
 
         private MoveDirection GetOppositeDirection(MoveDirection direction)
@@ -359,7 +418,8 @@ namespace PuzzleParty.Board
                         {
                             Row = original[i][j].Row,
                             Column = original[i][j].Column,
-                            IsLocked = original[i][j].IsLocked
+                            IsLocked = original[i][j].IsLocked,
+                            IsIced = original[i][j].IsIced
                         };
                     }
                 }
@@ -369,12 +429,11 @@ namespace PuzzleParty.Board
 
         public bool CanMoveTile(BoardTile tile, MoveDirection direction)
         {
-            // Check if tile is locked
             if (tile.IsLocked)
-            {
-                Debug.Log($"Tile [{tile.Row},{tile.Column}] is locked and cannot be moved");
                 return false;
-            }
+
+            if (tile.IsIced)
+                return false;
 
             // Find tile's current position in board
             int currentRow = -1, currentCol = -1;
@@ -554,11 +613,26 @@ namespace PuzzleParty.Board
                     if (tile != null)
                     {
                         tile.IsLocked = true;
-                        Debug.Log($"Applied lock to tile at POSITION [{row},{col}] (tile identity: [{tile.Row},{tile.Column}])");
                     }
                     else
                     {
-                        Debug.Log($"No tile at locked position [{row},{col}] (it's a hole)");
+                        // Hole is at the locked position — swap with the nearest non-hole tile
+                        bool swapped = false;
+                        for (int i = 0; i < board.Length && !swapped; i++)
+                        {
+                            for (int j = 0; j < board[i].Length && !swapped; j++)
+                            {
+                                if (board[i][j] != null)
+                                {
+                                    board[row][col] = board[i][j];
+                                    board[i][j] = null;
+                                    board[row][col].IsLocked = true;
+                                    swapped = true;
+                                }
+                            }
+                        }
+                        if (!swapped)
+                            Debug.LogWarning($"Could not apply lock at [{row},{col}]: no tiles to swap with");
                     }
                 }
             }
@@ -597,6 +671,67 @@ namespace PuzzleParty.Board
             }
 
             return unlockedTiles;
+        }
+
+        private void ApplyIceToRows()
+        {
+            if (level.IceRows == null || level.IceRows.Count == 0)
+                return;
+
+            HashSet<int> iceRowSet = GetIceRowSet();
+
+            for (int i = 0; i < board.Length; i++)
+                for (int j = 0; j < board[i].Length; j++)
+                    if (board[i][j] != null)
+                        board[i][j].IsIced = iceRowSet.Contains(i);
+        }
+
+        /// <summary>
+        /// Checks if all non-iced tiles are in their correct positions.
+        /// If so, clears all ice and returns the board positions that were iced.
+        /// </summary>
+        public List<(int row, int col)> CheckAndBreakIce()
+        {
+            // Check if there is any ice at all
+            bool hasIce = false;
+            for (int i = 0; i < board.Length; i++)
+                for (int j = 0; j < board[i].Length; j++)
+                    if (board[i][j] != null && board[i][j].IsIced)
+                        { hasIce = true; break; }
+
+            if (!hasIce)
+                return new List<(int row, int col)>();
+
+            // Check all non-iced tiles are correctly placed
+            for (int i = 0; i < board.Length; i++)
+            {
+                for (int j = 0; j < board[i].Length; j++)
+                {
+                    BoardTile tile = board[i][j];
+                    if (tile != null && !tile.IsIced)
+                    {
+                        if (tile.Row != i || tile.Column != j)
+                            return new List<(int row, int col)>();
+                    }
+                }
+            }
+
+            // All non-iced tiles are correct — break the ice
+            List<(int row, int col)> icedPositions = new List<(int row, int col)>();
+            for (int i = 0; i < board.Length; i++)
+            {
+                for (int j = 0; j < board[i].Length; j++)
+                {
+                    BoardTile tile = board[i][j];
+                    if (tile != null && tile.IsIced)
+                    {
+                        tile.IsIced = false;
+                        icedPositions.Add((i, j));
+                    }
+                }
+            }
+
+            return icedPositions;
         }
     }
 }

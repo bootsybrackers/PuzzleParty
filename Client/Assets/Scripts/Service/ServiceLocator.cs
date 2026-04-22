@@ -47,12 +47,14 @@ namespace PuzzleParty.Service
         Services.Clear();
 
         // Here you configure every service the game needs
-        Register(new ProgressionService());
+        var progressionService = new ProgressionService();
+        Register(progressionService);
         Register(new LevelService());
         Register(new SceneLoader());
         Register(new MapService());
         Register(new TransitionService());
         Register(new EGPService());
+        Register(new BackendSyncService(progressionService));
     }
     }
 }

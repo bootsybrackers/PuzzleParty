@@ -17,10 +17,10 @@ namespace PuzzleParty.UI
         private RectTransform atlasContainer;
 
         [SerializeField]
-        private Image mapImage;
+        private Transform leftLevelMarkersContainer;
 
         [SerializeField]
-        private Transform levelMarkersContainer;
+        private Transform rightLevelMarkersContainer;
 
         [SerializeField]
         private TextMeshProUGUI mapNameText;
@@ -98,29 +98,32 @@ namespace PuzzleParty.UI
         }
 
         /// <summary>
-        /// Animates level markers appearing one by one
+        /// Animates level markers appearing one by one across both pages
         /// </summary>
         private IEnumerator AnimateLevelMarkersIn(System.Action onComplete = null)
         {
-            if (levelMarkersContainer == null)
-            {
-                onComplete?.Invoke();
-                yield break;
-            }
+            var allMarkers = new List<LevelMarkerView>();
 
-            for (int i = 0; i < levelMarkersContainer.childCount; i++)
-            {
-                Transform marker = levelMarkersContainer.GetChild(i);
-                LevelMarkerView markerView = marker.GetComponent<LevelMarkerView>();
-
-                if (markerView != null)
+            if (leftLevelMarkersContainer != null)
+                foreach (Transform t in leftLevelMarkersContainer)
                 {
-                    markerView.AnimateIn();
-                    yield return new WaitForSeconds(levelMarkerStaggerDelay);
+                    var v = t.GetComponent<LevelMarkerView>();
+                    if (v != null) allMarkers.Add(v);
                 }
+
+            if (rightLevelMarkersContainer != null)
+                foreach (Transform t in rightLevelMarkersContainer)
+                {
+                    var v = t.GetComponent<LevelMarkerView>();
+                    if (v != null) allMarkers.Add(v);
+                }
+
+            foreach (var markerView in allMarkers)
+            {
+                markerView.AnimateIn();
+                yield return new WaitForSeconds(levelMarkerStaggerDelay);
             }
 
-            // All markers finished animating in
             onComplete?.Invoke();
         }
 
@@ -129,21 +132,7 @@ namespace PuzzleParty.UI
         /// </summary>
         public void AnimateNewLevelCompletion(int levelIndex)
         {
-            if (levelMarkersContainer == null)
-            {
-                Debug.LogWarning("levelMarkersContainer is null - cannot animate level completion");
-                return;
-            }
-
-            if (levelIndex < 0 || levelIndex >= levelMarkersContainer.childCount)
-            {
-                Debug.LogWarning($"Level index {levelIndex} out of bounds (total markers: {levelMarkersContainer.childCount})");
-                return;
-            }
-
-            Transform marker = levelMarkersContainer.GetChild(levelIndex);
-            LevelMarkerView markerView = marker.GetComponent<LevelMarkerView>();
-
+            LevelMarkerView markerView = GetMarkerAtIndex(levelIndex);
             if (markerView != null)
             {
                 Debug.Log($"Animating completion for level marker at index {levelIndex}");
@@ -151,19 +140,26 @@ namespace PuzzleParty.UI
             }
             else
             {
-                Debug.LogWarning($"LevelMarkerView not found on child at index {levelIndex}");
+                Debug.LogWarning($"LevelMarkerView not found at index {levelIndex}");
             }
         }
 
-        /// <summary>
-        /// Sets the map sprite for the right page
-        /// </summary>
-        public void SetMapSprite(Sprite sprite)
+        private LevelMarkerView GetMarkerAtIndex(int index)
         {
-            if (mapImage != null)
+            int leftCount = leftLevelMarkersContainer != null ? leftLevelMarkersContainer.childCount : 0;
+
+            if (index < leftCount)
             {
-                mapImage.sprite = sprite;
+                return leftLevelMarkersContainer.GetChild(index).GetComponent<LevelMarkerView>();
             }
+
+            int rightIndex = index - leftCount;
+            if (rightLevelMarkersContainer != null && rightIndex < rightLevelMarkersContainer.childCount)
+            {
+                return rightLevelMarkersContainer.GetChild(rightIndex).GetComponent<LevelMarkerView>();
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -182,28 +178,36 @@ namespace PuzzleParty.UI
         /// </summary>
         public void ClearLevelMarkers()
         {
-            if (levelMarkersContainer == null) return;
+            if (leftLevelMarkersContainer != null)
+                foreach (Transform child in leftLevelMarkersContainer)
+                    Destroy(child.gameObject);
 
-            foreach (Transform child in levelMarkersContainer)
-            {
-                Destroy(child.gameObject);
-            }
+            if (rightLevelMarkersContainer != null)
+                foreach (Transform child in rightLevelMarkersContainer)
+                    Destroy(child.gameObject);
         }
 
         /// <summary>
-        /// Adds a level marker to the container
+        /// Adds a level marker. page=0 goes to the left page, page=1 to the right page.
         /// </summary>
-        public void AddLevelMarker(int levelId, string levelName, bool isCompleted)
+        public void AddLevelMarker(int levelId, string levelName, bool isCompleted, int page = 0)
         {
-            if (levelMarkersContainer == null || levelMarkerPrefab == null)
+            if (levelMarkerPrefab == null)
             {
-                Debug.LogError("levelMarkersContainer or levelMarkerPrefab is NULL!");
+                Debug.LogError("levelMarkerPrefab is NULL!");
                 return;
             }
 
-            GameObject markerObj = Instantiate(levelMarkerPrefab, levelMarkersContainer);
-            LevelMarkerView markerView = markerObj.GetComponent<LevelMarkerView>();
+            Transform target = page == 0 ? leftLevelMarkersContainer : rightLevelMarkersContainer;
 
+            if (target == null)
+            {
+                Debug.LogError($"Level marker container for page {page} is not assigned!");
+                return;
+            }
+
+            GameObject markerObj = Instantiate(levelMarkerPrefab, target);
+            LevelMarkerView markerView = markerObj.GetComponent<LevelMarkerView>();
             if (markerView != null)
             {
                 markerView.Setup(levelId, levelName, isCompleted);

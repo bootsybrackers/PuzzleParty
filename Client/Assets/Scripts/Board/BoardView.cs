@@ -24,6 +24,7 @@ namespace PuzzleParty.Board
         [Header("Overlays")]
         [SerializeField] private GameEndOverlayController gameEndOverlay;
         [SerializeField] private ChainSystem chainSystem;
+        [SerializeField] private IceSystem iceSystem;
 
         // Dynamic tile sizing
         private int tilePixelWidth;
@@ -39,12 +40,14 @@ namespace PuzzleParty.Board
 
             chainSystem.Initialize();
             chainSystem.SetTileObjects(tileObjects);
+            iceSystem.Initialize();
+            iceSystem.SetTileObjects(tileObjects);
 
             int cols = level.Columns;
             int rows = level.Rows;
 
             // Calculate dynamic tile size based on board dimensions
-            // The texture is always 768x1344, divide it by the grid size
+            // The texture is always 768x1152, divide it by the grid size
             tilePixelWidth = TileFactory.TEXTURE_WIDTH / cols;
             tilePixelHeight = TileFactory.TEXTURE_HEIGHT / rows;
 
@@ -52,10 +55,12 @@ namespace PuzzleParty.Board
             // For 4x7: width=4.0/4=1.0, height=7.0/7=1.0 (square tiles)
             // For 3x5: width=4.0/3=1.33, height=7.0/5=1.4 (slightly rectangular)
             const float DESIRED_BOARD_WIDTH = 4.0f;
-            const float DESIRED_BOARD_HEIGHT = 7.0f;
+            const float DESIRED_BOARD_HEIGHT = 6.0f; // matches 1024x1536 (2:3) source images
 
             desiredTileWorldWidth = DESIRED_BOARD_WIDTH / cols;
             desiredTileWorldHeight = DESIRED_BOARD_HEIGHT / rows;
+
+            iceSystem.SetGridInfo(transform, cols, rows, desiredTileWorldWidth, desiredTileWorldHeight);
 
             Texture2D tex = level.LevelSprite.texture;
             Texture2D newTex = TileFactory.ResizeTexture(tex, TileFactory.TEXTURE_WIDTH, TileFactory.TEXTURE_HEIGHT);
@@ -243,13 +248,19 @@ namespace PuzzleParty.Board
             if (uiElements?.levelBanner != null)
             {
                 RectTransform rectTransform = uiElements.levelBanner.GetComponent<RectTransform>();
+                CanvasGroup exitCanvasGroup = uiElements.levelBanner.GetComponent<CanvasGroup>();
 
                 if (rectTransform != null)
                 {
                     Vector2 exitPos = rectTransform.anchoredPosition;
-                    exitPos.x -= 1200f; // Slide back out to the left (fully off-screen)
+                    exitPos.x -= 1200f;
 
-                    rectTransform.DOAnchorPos(exitPos, 0.5f).SetEase(Ease.InBack);
+                    rectTransform.DOAnchorPos(exitPos, 0.5f)
+                        .SetEase(Ease.InCubic)
+                        .OnComplete(() =>
+                        {
+                            if (exitCanvasGroup != null) exitCanvasGroup.alpha = 0f;
+                        });
                 }
             }
 
@@ -372,7 +383,10 @@ namespace PuzzleParty.Board
                 }
 
                 // After scramble completes, add locks with animation
-                AnimateLocksAppearing(scrambledBoard, onComplete);
+                AnimateLocksAppearing(scrambledBoard, () => {
+                    iceSystem.AnimateIceAppearing(scrambledBoard);
+                    onComplete?.Invoke();
+                });
             });
         }
 
@@ -452,7 +466,7 @@ namespace PuzzleParty.Board
                             controller.transform.localScale = Vector3.zero;
 
                             // Animate scale up with bounce
-                            lockSequence.Insert(delay, controller.transform.DOScale(targetScale, 0.5f).SetEase(Ease.OutBack));
+                            lockSequence.Insert(delay, controller.transform.DOScale(targetScale, 0.5f).SetEase(Ease.OutBack).SetLink(controller.gameObject));
 
                             // Fade in chain sprite
                             Color color = chainSr.color;
@@ -595,7 +609,7 @@ namespace PuzzleParty.Board
                         Color originalColor = sr.color;
 
                         // Create sequence for the effect
-                        DG.Tweening.Sequence effectSequence = DOTween.Sequence();
+                        DG.Tweening.Sequence effectSequence = DOTween.Sequence().SetLink(tileObj);
 
                         // Scale pulse
                         effectSequence.Append(tileObj.transform.DOScale(tileObj.transform.localScale * 1.2f, 0.2f).SetEase(Ease.OutQuad));
@@ -747,11 +761,11 @@ namespace PuzzleParty.Board
             imageRect.pivot = new Vector2(0.5f, 0.5f);
 
             // Calculate size to match board dimensions
-            // Board is 4.0 width x 7.0 height in world units
+            // Board is 4.0 width x 6.0 height in world units
             // Convert to screen pixels based on camera
             float pixelsPerUnit = Screen.height / (Camera.main.orthographicSize * 2);
             float boardWidthPixels = 4.0f * pixelsPerUnit;
-            float boardHeightPixels = 7.0f * pixelsPerUnit;
+            float boardHeightPixels = 6.0f * pixelsPerUnit;
 
             imageRect.sizeDelta = new Vector2(boardWidthPixels, boardHeightPixels);
             imageRect.anchoredPosition = Vector2.zero;
@@ -774,6 +788,9 @@ namespace PuzzleParty.Board
                     });
                 });
         }
+
+        public void AnimateIceBreak(List<(int row, int col)> icedPositions, System.Action onComplete)
+            => iceSystem.AnimateIceBreak(icedPositions, onComplete);
 
         public void UpdateChainProgress(int correctlyPlacedCount)
             => chainSystem.UpdateChainProgress(correctlyPlacedCount);

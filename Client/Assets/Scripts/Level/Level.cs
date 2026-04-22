@@ -18,5 +18,6 @@ namespace PuzzleParty.Levels
         public string Name {get;set;}
 
         public List<(int row, int column)> LockedTiles {get;set;} = new List<(int row, int column)>();
+        public List<int> IceRows { get; set; } = new List<int>();
     }
 }

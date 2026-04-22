@@ -29,6 +29,12 @@ namespace PuzzleParty.Levels
                 level.LockedTiles.Add((lockedTile.row, lockedTile.column));
         }
 
+        if (lc.ice_rows != null && lc.ice_rows.Length > 0)
+        {
+            foreach (var row in lc.ice_rows)
+                level.IceRows.Add(row);
+        }
+
         return level;
     }
 

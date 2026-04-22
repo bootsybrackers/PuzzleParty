@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -30,6 +31,10 @@ namespace PuzzleParty.UI
 
     [SerializeField]
     private TextMeshProUGUI coinsText;
+
+    [Header("Overlays")]
+    [SerializeField]
+    private MapCompletionOverlayController mapCompletionOverlay;
 
     private ISceneLoader sceneLoader;
     private IProgressionService progressionService;
@@ -76,29 +81,49 @@ namespace PuzzleParty.UI
         // Setup atlas visualization
         SetupAtlas();
 
-        // Check if we just completed a level
+        // Check if we just completed a level (and optionally a whole map)
         bool justCompletedLevel = PlayerPrefs.GetInt("JustCompletedLevel", 0) == 1;
-        Debug.Log($"Just completed level flag: {justCompletedLevel}");
+        bool justCompletedMap   = PlayerPrefs.GetInt("JustCompletedMap",   0) == 1;
+        int  completedMapId     = PlayerPrefs.GetInt("CompletedMapId",      0);
+
         if (justCompletedLevel)
         {
-            // Clear the flag
             PlayerPrefs.SetInt("JustCompletedLevel", 0);
             PlayerPrefs.Save();
-            Debug.Log("Cleared JustCompletedLevel flag");
         }
+        if (justCompletedMap)
+        {
+            PlayerPrefs.SetInt("JustCompletedMap", 0);
+            PlayerPrefs.SetInt("CompletedMapId",   0);
+            PlayerPrefs.Save();
+        }
+
+        // Wire up hidden debug overlay (3 taps in top-left corner)
+        DebugOverlayController debug = gameObject.AddComponent<DebugOverlayController>();
+        debug.OnClose = () =>
+        {
+            DisplayPlayerStats();
+            UpdatePlayButtonText();
+            SetupAtlas();
+        };
 
         // Fade in from black, then animate atlas
         transitionService.FadeIn(() =>
         {
             if (mainMenuView != null)
             {
-                // Always open the atlas first
                 mainMenuView.AnimateOpen(() =>
                 {
-                    // After atlas opens, if we just completed a level, animate that marker
-                    if (justCompletedLevel)
+                    // When a map is completed the atlas has already switched to the new map,
+                    // so the per-level marker animation is skipped in favour of the overlay.
+                    if (justCompletedLevel && !justCompletedMap)
                     {
                         AnimateNewLevelCompletion();
+                    }
+
+                    if (justCompletedMap)
+                    {
+                        StartCoroutine(ShowMapCompletionAfterDelay(completedMapId, 1.0f));
                     }
                 });
             }
@@ -183,7 +208,8 @@ namespace PuzzleParty.UI
         // For now, you'll need to set this manually in the Unity Editor
         // mainMenuView.SetMapSprite(mapSprite);
 
-        // Create level markers for all levels in the current map
+        // Create level markers for all levels in the current map, split across left and right pages
+        int halfPoint = currentMap.TotalLevels / 2;
         for (int levelId = currentMap.startLevel; levelId <= currentMap.endLevel; levelId++)
         {
             Level level = levelService.GetLevel(levelId);
@@ -191,7 +217,9 @@ namespace PuzzleParty.UI
 
             if (level != null)
             {
-                mainMenuView.AddLevelMarker(levelId, level.Name, isCompleted);
+                int indexInMap = levelId - currentMap.startLevel;
+                int page = indexInMap < halfPoint ? 0 : 1;
+                mainMenuView.AddLevelMarker(levelId, level.Name, isCompleted, page);
             }
         }
 
@@ -233,6 +261,40 @@ namespace PuzzleParty.UI
         {
             Debug.LogWarning($"Completed level index {completedLevelIndex} is out of bounds for map {completedLevelMap.name} (0-{completedLevelMap.TotalLevels - 1})");
         }
+    }
+
+    private IEnumerator ShowMapCompletionAfterDelay(int completedMapId, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+
+        Map completedMap = mapService.GetMapById(completedMapId);
+        if (completedMap == null) yield break;
+
+        // Find the next map (the one after the completed one)
+        Map[] allMaps = mapService.GetAllMaps();
+        string nextMapName = null;
+        for (int i = 0; i < allMaps.Length - 1; i++)
+        {
+            if (allMaps[i].id == completedMapId)
+            {
+                nextMapName = allMaps[i + 1].name;
+                break;
+            }
+        }
+
+        if (mapCompletionOverlay == null)
+        {
+            Debug.LogError("mapCompletionOverlay is not assigned in the Inspector on MainMenuController.");
+            yield break;
+        }
+
+        mapCompletionOverlay.Show(completedMap.name, nextMapName, () =>
+        {
+            // Refresh UI to reflect new map and updated coins
+            DisplayPlayerStats();
+            UpdatePlayButtonText();
+            SetupAtlas();
+        });
     }
 
     private void StartPlayButtonPulseAnimation()

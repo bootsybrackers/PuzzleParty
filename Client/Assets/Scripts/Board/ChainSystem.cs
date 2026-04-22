@@ -135,8 +135,8 @@ namespace PuzzleParty.Board
 
                 if (chainSr != null)
                 {
-                    controller.transform.DOScale(Vector3.one * 1.5f, 0.3f).SetEase(Ease.OutBack);
-                    chainSr.DOFade(0f, 0.3f);
+                    controller.transform.DOScale(Vector3.one * 1.5f, 0.3f).SetEase(Ease.OutBack).SetLink(controller.gameObject);
+                    chainSr.DOFade(0f, 0.3f).SetLink(controller.gameObject);
                 }
 
                 if (darkSr != null)
@@ -155,8 +155,8 @@ namespace PuzzleParty.Board
                     SpriteRenderer chainSr = chainOverlay.GetComponent<SpriteRenderer>();
                     if (chainSr != null)
                     {
-                        chainOverlay.DOScale(Vector3.one * 1.5f, 0.3f).SetEase(Ease.OutBack);
-                        chainSr.DOFade(0f, 0.3f).OnComplete(() => Destroy(chainOverlay.gameObject));
+                        chainOverlay.DOScale(Vector3.one * 1.5f, 0.3f).SetEase(Ease.OutBack).SetLink(chainOverlay.gameObject);
+                        chainSr.DOFade(0f, 0.3f).OnComplete(() => Destroy(chainOverlay.gameObject)).SetLink(chainOverlay.gameObject);
                     }
                 }
 
@@ -201,7 +201,7 @@ namespace PuzzleParty.Board
                 burst.Play(worldPos);
             }
 
-            DG.Tweening.Sequence transitionSeq = DOTween.Sequence();
+            DG.Tweening.Sequence transitionSeq = DOTween.Sequence().SetLink(chainTransform.gameObject);
             transitionSeq.Append(chainTransform.DOScale(originalScale * 0.7f, 0.12f).SetEase(Ease.InBack));
             transitionSeq.Join(chainSr.DOFade(0.3f, 0.12f));
             transitionSeq.AppendCallback(() => { chainSr.sprite = newSprite; });

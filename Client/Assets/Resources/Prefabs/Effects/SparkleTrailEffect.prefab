@@ -1,0 +1,65 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &938136004528007493
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8881046079509822276}
+  - component: {fileID: 3012265732161227908}
+  m_Layer: 0
+  m_Name: SparkleTrailEffect
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8881046079509822276
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 938136004528007493}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3012265732161227908
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 938136004528007493}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dacdae1fe8c164f30b2d5a14b9c5bd02, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PuzzleParty.Board.Effects.SparkleTrailEffect
+  sparkleCount: 12
+  sparkleDuration: 0.65
+  sparkleStaggerTime: 0.2
+  sparkleSize: {x: 28, y: 44}
+  pathCurveStrength: 40
+  pathXSpread: 15
+  headToTailRatio: 2
+  sparkleHueMin: 0.08
+  sparkleHueMax: 0.14
+  sparkleSaturationMin: 0.5
+  sparkleSaturationMax: 0.85
+  sparkleFadeStart: 0.75
+  sparkleShrinkStart: 0.7
+  burstParticleCount: 10
+  burstSize: 22
+  burstDistance: {x: 50, y: 100}
+  burstDuration: 0.25
+  pulseScale: 1.2
+  pulseDuration: 0.18

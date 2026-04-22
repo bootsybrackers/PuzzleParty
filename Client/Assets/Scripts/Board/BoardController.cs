@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using PuzzleParty.EGP;
 using PuzzleParty.Levels;
+using PuzzleParty.Maps;
 using PuzzleParty.Progressions;
 using PuzzleParty.Service;
 
@@ -52,6 +53,14 @@ namespace PuzzleParty.Board
             transitionService.FadeIn();
         }
 
+        void Update()
+        {
+#if UNITY_EDITOR
+            if (Input.GetKeyDown(KeyCode.W))
+                OnPuzzleSolved();
+#endif
+        }
+
         void OnSwipe(Vector3 startPos, MoveDirection direction)
         {
             BoardTile clickedTile = boardView.GetTileAtPosition(startPos);
@@ -83,6 +92,7 @@ namespace PuzzleParty.Board
                 boardView.UpdateTilePositions(boardManager.GetCurrentBoard(), () => {
                     CheckForCorrectlyPlacedTiles();
                     CheckAndUnlockTiles();
+                    CheckAndBreakIce();
 
                     if (boardManager.IsSolved)
                         OnPuzzleSolved();
@@ -310,12 +320,21 @@ namespace PuzzleParty.Board
 
         void LoadNextLevel()
         {
-            // Set flag to indicate we just completed a level
             PlayerPrefs.SetInt("JustCompletedLevel", 1);
-            PlayerPrefs.Save();
 
-            // Go back to main menu to select next level
-            // (You can change this to load the next level directly if you prefer)
+            // Check if this was the last level of a map
+            IMapService mapService = ServiceLocator.GetInstance().Get<MapService>();
+            foreach (Map map in mapService.GetAllMaps())
+            {
+                if (map.endLevel == currentLevel.Id)
+                {
+                    PlayerPrefs.SetInt("JustCompletedMap", 1);
+                    PlayerPrefs.SetInt("CompletedMapId", map.id);
+                    break;
+                }
+            }
+
+            PlayerPrefs.Save();
             sceneLoader.LoadMainMenu();
         }
 
@@ -380,6 +399,20 @@ namespace PuzzleParty.Board
                 // Force update tile positions to remove chains immediately if animation doesn't work
                 // This will call UpdateChainOverlay for all tiles with the current locked state
                 boardView.UpdateTilePositions(boardManager.GetCurrentBoard(), null);
+            }
+        }
+
+        void CheckAndBreakIce()
+        {
+            List<(int row, int col)> brokeIce = boardManager.CheckAndBreakIce();
+
+            if (brokeIce.Count > 0)
+            {
+                inputHandler.DisableInput();
+                boardView.AnimateIceBreak(brokeIce, () => {
+                    boardView.UpdateTilePositions(boardManager.GetCurrentBoard(), null);
+                    inputHandler.EnableInput();
+                });
             }
         }
 

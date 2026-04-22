@@ -102,7 +102,7 @@ namespace PuzzleParty.Board
             if (egpPriceText != null)
             {
                 egpPriceText.gameObject.SetActive(true);
-                egpPriceText.text = $"{offer.price} coins";
+                egpPriceText.text = $"{offer.price}";
             }
 
             if (egpContinueButton != null)
@@ -153,7 +153,8 @@ namespace PuzzleParty.Board
             transform.localScale = Vector3.zero;
             transform.DOScale(Vector3.one, 0.6f)
                 .SetEase(Ease.OutBack)
-                .SetDelay(0.2f);
+                .SetDelay(0.2f)
+                .SetLink(gameObject);
         }
 
         private void StartConfetti()
@@ -191,7 +192,8 @@ namespace PuzzleParty.Board
             nextLevelButton.transform.DOScale(1.05f, 0.8f)
                 .SetEase(Ease.InOutSine)
                 .SetLoops(-1, LoopType.Yoyo)
-                .SetDelay(0.9f);
+                .SetDelay(0.9f)
+                .SetLink(nextLevelButton.gameObject);
         }
 
         private void StopContinueButtonPulseAnimation()
@@ -237,8 +239,9 @@ namespace PuzzleParty.Board
 
             textRect.DOScale(originalScale * victoryTextPunchScale, victoryTextPunchDuration * 0.6f)
                 .SetEase(Ease.OutBack)
+                .SetLink(textRect.gameObject)
                 .OnComplete(() => {
-                    textRect.DOScale(originalScale, victoryTextPunchDuration * 0.4f).SetEase(Ease.InOutQuad);
+                    if (textRect != null) textRect.DOScale(originalScale, victoryTextPunchDuration * 0.4f).SetEase(Ease.InOutQuad).SetLink(textRect.gameObject);
                 });
 
             if (victorySparkleEffectPrefab != null)
@@ -261,7 +264,8 @@ namespace PuzzleParty.Board
 
             textRect.DOScale(originalScale * 1.05f, 0.8f)
                 .SetEase(Ease.InOutSine)
-                .SetLoops(-1, LoopType.Yoyo);
+                .SetLoops(-1, LoopType.Yoyo)
+                .SetLink(textRect.gameObject);
         }
     }
 }
