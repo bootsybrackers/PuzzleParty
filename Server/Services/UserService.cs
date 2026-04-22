@@ -1,7 +1,5 @@
 using webapi.Models;
 using webapi.Repositories;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace webapi.Services
 {
@@ -14,14 +12,15 @@ namespace webapi.Services
             _userRepository = userRepository;
         }
 
-        public Task<IEnumerable<User>> GetAllUsersAsync() => _userRepository.GetAllAsync();
+        public Task<User?> GetUserAsync(string deviceId) =>
+            _userRepository.GetByDeviceIdAsync(deviceId);
 
-        public Task<User?> GetUserByIdAsync(int id) => _userRepository.GetByIdAsync(id);
-
-        public Task AddUserAsync(User user) => _userRepository.AddAsync(user);
-
-        public Task UpdateUserAsync(User user) => _userRepository.UpdateAsync(user);
-
-        public Task DeleteUserAsync(int id) => _userRepository.DeleteAsync(id);
+        public async Task UpsertUserAsync(User user)
+        {
+            var existing = await _userRepository.GetByDeviceIdAsync(user.DeviceId);
+            user.CreatedAt = existing?.CreatedAt ?? DateTime.UtcNow;
+            user.LastSyncedAt = DateTime.UtcNow;
+            await _userRepository.UpsertAsync(user);
+        }
     }
 }

@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using webapi.Models;
 using webapi.Services;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace webapi.Controllers
 {
@@ -17,41 +15,20 @@ namespace webapi.Controllers
             _userService = userService;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<User>>> GetAllUsers()
+        [HttpGet("{deviceId}")]
+        public async Task<ActionResult<User>> GetUser(string deviceId)
         {
-            var users = await _userService.GetAllUsersAsync();
-            return Ok(users);
-        }
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<User>> GetUserById(int id)
-        {
-            var user = await _userService.GetUserByIdAsync(id);
+            var user = await _userService.GetUserAsync(deviceId);
             if (user == null) return NotFound();
             return Ok(user);
         }
 
-        [HttpPost]
-        public async Task<ActionResult> AddUser(User user)
+        [HttpPut("{deviceId}")]
+        public async Task<ActionResult<User>> UpsertUser(string deviceId, User user)
         {
-            await _userService.AddUserAsync(user);
-            return CreatedAtAction(nameof(GetUserById), new { id = user.Id }, user);
-        }
-
-        [HttpPut("{id}")]
-        public async Task<ActionResult> UpdateUser(int id, User user)
-        {
-            if (id != user.Id) return BadRequest();
-            await _userService.UpdateUserAsync(user);
-            return NoContent();
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<ActionResult> DeleteUser(int id)
-        {
-            await _userService.DeleteUserAsync(id);
-            return NoContent();
+            user.DeviceId = deviceId;
+            await _userService.UpsertUserAsync(user);
+            return Ok(user);
         }
     }
 }
