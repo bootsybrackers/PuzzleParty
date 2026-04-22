@@ -13,9 +13,10 @@ fi
 
 TAG="v$VERSION"
 
-# Check for uncommitted changes
-if [ -n "$(git status --porcelain)" ]; then
+# Check for uncommitted changes to tracked files only
+if [ -n "$(git status --porcelain | grep -v '^?? ')" ]; then
   echo "Error: You have uncommitted changes. Commit or stash them before building."
+  git status --short | grep -v '^?? '
   exit 1
 fi
 
