@@ -29,6 +29,7 @@ namespace PuzzleParty.Board.Effects
 
         private Coroutine confettiCoroutine;
         private List<GameObject> activeConfetti = new List<GameObject>();
+        private Queue<GameObject> pool = new Queue<GameObject>();
         private Sprite confettiSprite;
         private Transform canvasParent;
 
@@ -42,8 +43,48 @@ namespace PuzzleParty.Board.Effects
                 confettiSprite = CreateFallbackConfettiSprite();
             }
 
+            InitPool();
             StartCoroutine(SpawnConfettiBurst());
             confettiCoroutine = StartCoroutine(SpawnConfettiContinuously());
+        }
+
+        private void InitPool()
+        {
+            for (int i = 0; i < maxActiveConfetti; i++)
+            {
+                GameObject obj = new GameObject("Confetti");
+                obj.transform.SetParent(canvasParent, false);
+                Image img = obj.AddComponent<Image>();
+                img.sprite = confettiSprite;
+                img.raycastTarget = false;
+                obj.SetActive(false);
+                pool.Enqueue(obj);
+            }
+        }
+
+        private GameObject GetFromPool()
+        {
+            if (pool.Count == 0) return null;
+            GameObject obj = pool.Dequeue();
+            Image img = obj.GetComponent<Image>();
+            if (img != null)
+            {
+                img.sprite = confettiSprite;
+                Color c = img.color;
+                c.a = 1f;
+                img.color = c;
+            }
+            obj.SetActive(true);
+            return obj;
+        }
+
+        private void ReturnToPool(GameObject obj)
+        {
+            if (obj == null) return;
+            activeConfetti.Remove(obj);
+            obj.transform.DOKill();
+            obj.SetActive(false);
+            pool.Enqueue(obj);
         }
 
         public void Stop()
@@ -58,7 +99,9 @@ namespace PuzzleParty.Board.Effects
             {
                 if (confetti != null)
                 {
-                    Destroy(confetti);
+                    confetti.transform.DOKill();
+                    confetti.SetActive(false);
+                    pool.Enqueue(confetti);
                 }
             }
             activeConfetti.Clear();
@@ -67,6 +110,11 @@ namespace PuzzleParty.Board.Effects
         private void OnDestroy()
         {
             Stop();
+            while (pool.Count > 0)
+            {
+                var obj = pool.Dequeue();
+                if (obj != null) Destroy(obj);
+            }
         }
 
         private IEnumerator SpawnConfettiBurst()
@@ -90,15 +138,11 @@ namespace PuzzleParty.Board.Effects
 
         private void SpawnBurstConfetti(float screenWidth, float screenHeight)
         {
-            GameObject confettiObj = new GameObject("ConfettiBurst");
-            confettiObj.transform.SetParent(canvasParent, false);
+            GameObject confettiObj = GetFromPool();
+            if (confettiObj == null) return;
 
-            Image img = confettiObj.AddComponent<Image>();
-            img.sprite = confettiSprite;
-            img.raycastTarget = false;
-
-            Color confettiColor = confettiColors[Random.Range(0, confettiColors.Length)];
-            img.color = confettiColor;
+            Image img = confettiObj.GetComponent<Image>();
+            img.color = confettiColors[Random.Range(0, confettiColors.Length)];
 
             RectTransform rect = confettiObj.GetComponent<RectTransform>();
 
@@ -135,12 +179,11 @@ namespace PuzzleParty.Board.Effects
                     float flutter = Mathf.Sin(t * Mathf.PI * 5f) * 35f;
                     rect.position = new Vector3(xPos + flutter, yBase + yOffset, 0f);
                 })
-                .SetLink(confettiObj)
-                .OnComplete(() => { activeConfetti.Remove(confettiObj); Destroy(confettiObj); });
+                .OnComplete(() => ReturnToPool(confettiObj));
 
             rect.DORotate(new Vector3(0f, 0f, startRotation + totalRotation), duration, RotateMode.FastBeyond360)
-                .SetEase(Ease.Linear).SetLink(confettiObj);
-            img.DOFade(0f, duration * 0.3f).SetDelay(duration * 0.7f).SetLink(confettiObj);
+                .SetEase(Ease.Linear);
+            img.DOFade(0f, duration * 0.3f).SetDelay(duration * 0.7f);
         }
 
         private IEnumerator SpawnConfettiContinuously()
@@ -170,30 +213,20 @@ namespace PuzzleParty.Board.Effects
 
         private void SpawnSingleConfetti(float screenWidth, float screenHeight)
         {
-            GameObject confettiObj = new GameObject("Confetti");
-            confettiObj.transform.SetParent(canvasParent, false);
+            GameObject confettiObj = GetFromPool();
+            if (confettiObj == null) return;
 
-            Image img = confettiObj.AddComponent<Image>();
-            img.sprite = confettiSprite;
-            img.raycastTarget = false;
-
-            Color confettiColor = confettiColors[Random.Range(0, confettiColors.Length)];
-            img.color = confettiColor;
+            Image img = confettiObj.GetComponent<Image>();
+            img.color = confettiColors[Random.Range(0, confettiColors.Length)];
 
             RectTransform rect = confettiObj.GetComponent<RectTransform>();
 
             float size = Random.Range(confettiSize.x, confettiSize.y);
             rect.sizeDelta = new Vector2(size * 0.6f, size);
 
-            float spawnX;
-            if (Random.value > 0.5f)
-            {
-                spawnX = Random.Range(0f, screenWidth * 0.35f);
-            }
-            else
-            {
-                spawnX = Random.Range(screenWidth * 0.65f, screenWidth);
-            }
+            float spawnX = Random.value > 0.5f
+                ? Random.Range(0f, screenWidth * 0.35f)
+                : Random.Range(screenWidth * 0.65f, screenWidth);
             float spawnY = screenHeight + 50f;
 
             rect.position = new Vector3(spawnX, spawnY, 0f);
@@ -212,21 +245,19 @@ namespace PuzzleParty.Board.Effects
             float spinDirection = Random.value > 0.5f ? 1f : -1f;
             float totalRotation = confettiSpinSpeed * duration * spinDirection;
 
-            // Combine X (drift+wave) and Y (InQuad fall) in one float to avoid needing a Sequence
             DOVirtual.Float(0f, 1f, duration, t =>
                 {
                     if (rect == null) return;
                     float wave = Mathf.Sin(t * Mathf.PI * 3f) * 30f;
                     float xPos = Mathf.Lerp(spawnX, targetX, t) + wave;
-                    float yPos = Mathf.Lerp(spawnY, targetY, t * t); // t*t ≈ InQuad
+                    float yPos = Mathf.Lerp(spawnY, targetY, t * t);
                     rect.position = new Vector3(xPos, yPos, 0f);
                 })
-                .SetLink(confettiObj)
-                .OnComplete(() => { activeConfetti.Remove(confettiObj); Destroy(confettiObj); });
+                .OnComplete(() => ReturnToPool(confettiObj));
 
             rect.DORotate(new Vector3(0f, 0f, startRotation + totalRotation), duration, RotateMode.FastBeyond360)
-                .SetEase(Ease.Linear).SetLink(confettiObj);
-            img.DOFade(0f, duration * 0.3f).SetDelay(duration * 0.7f).SetLink(confettiObj);
+                .SetEase(Ease.Linear);
+            img.DOFade(0f, duration * 0.3f).SetDelay(duration * 0.7f);
         }
 
         private static Sprite CreateFallbackConfettiSprite()

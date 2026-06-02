@@ -20,6 +20,11 @@ namespace PuzzleParty.Board
 
         [Header("Effect Prefabs")]
         [SerializeField] private SparkleTrailEffect sparkleTrailEffectPrefab;
+        [SerializeField] private BoardShineEffect boardShineEffectPrefab;
+        [SerializeField] private TileSelectEffect tileSelectEffectPrefab;
+
+        private BoardShineEffect activeShineEffect;
+        private TileSelectEffect activeSelectEffect;
 
         [Header("Overlays")]
         [SerializeField] private GameEndOverlayController gameEndOverlay;
@@ -256,7 +261,7 @@ namespace PuzzleParty.Board
                     exitPos.x -= 1200f;
 
                     rectTransform.DOAnchorPos(exitPos, 0.5f)
-                        .SetEase(Ease.InCubic)
+                        .SetEase(Ease.InBack)
                         .OnComplete(() =>
                         {
                             if (exitCanvasGroup != null) exitCanvasGroup.alpha = 0f;
@@ -526,7 +531,7 @@ namespace PuzzleParty.Board
                         if (tileObjects.TryGetValue(key, out GameObject tileObj))
                         {
                             Vector3 targetPos = TileFactory.GetTileLocalPosition(j + 1, i + 1, level.Columns, level.Rows, desiredTileWorldWidth, desiredTileWorldHeight, transform.lossyScale);
-                            moveSequence.Join(tileObj.transform.DOLocalMove(targetPos, 0.1f).SetEase(Ease.OutQuad));
+                            moveSequence.Join(tileObj.transform.DOLocalMove(targetPos, 0.25f).SetEase(Ease.OutBack));
                             hasAnimations = true;
 
                             // Update chain overlay based on locked state
@@ -787,6 +792,93 @@ namespace PuzzleParty.Board
                             });
                     });
                 });
+        }
+
+        public void ShowSwapMode()
+        {
+            if (boardShineEffectPrefab == null) return;
+            activeShineEffect = Instantiate(boardShineEffectPrefab, transform.position, Quaternion.identity);
+            activeShineEffect.Play();
+        }
+
+        public void HideSwapMode()
+        {
+            ClearTileSelection();
+            if (activeShineEffect != null)
+            {
+                var effect = activeShineEffect;
+                activeShineEffect = null;
+                effect.Stop(() => Destroy(effect.gameObject));
+            }
+        }
+
+        public void ShowTileSelectedForSwap(int row, int col)
+        {
+            ClearTileSelection();
+
+            string key = TileFactory.GetTileKey(row, col);
+            if (!tileObjects.TryGetValue(key, out GameObject tileObj)) return;
+            if (tileSelectEffectPrefab == null) return;
+
+            activeSelectEffect = Instantiate(tileSelectEffectPrefab);
+            activeSelectEffect.Play(tileObj.transform.position, desiredTileWorldWidth, desiredTileWorldHeight);
+        }
+
+        public void ClearTileSelection()
+        {
+            if (activeSelectEffect != null)
+            {
+                activeSelectEffect.Stop();
+                activeSelectEffect = null;
+            }
+        }
+
+        public void AnimateTileSwap(BoardTile tile1, BoardTile tile2, System.Action onComplete)
+        {
+            string key1 = TileFactory.GetTileKey(tile1.Row, tile1.Column);
+            string key2 = TileFactory.GetTileKey(tile2.Row, tile2.Column);
+
+            if (!tileObjects.TryGetValue(key1, out GameObject obj1) ||
+                !tileObjects.TryGetValue(key2, out GameObject obj2))
+            {
+                onComplete?.Invoke();
+                return;
+            }
+
+            Vector3 startPos1 = obj1.transform.localPosition;
+            Vector3 startPos2 = obj2.transform.localPosition;
+
+            float arcHeight = Mathf.Max(desiredTileWorldWidth, desiredTileWorldHeight) * 1.4f;
+            float duration = 0.45f;
+            int done = 0;
+            System.Action checkDone = () => { if (++done == 2) onComplete?.Invoke(); };
+
+            // Tile 1 arcs upward
+            DOVirtual.Float(0f, 1f, duration, t =>
+            {
+                if (obj1 == null) return;
+                float x = Mathf.Lerp(startPos1.x, startPos2.x, t);
+                float y = Mathf.Lerp(startPos1.y, startPos2.y, t) + Mathf.Sin(t * Mathf.PI) * arcHeight;
+                obj1.transform.localPosition = new Vector3(x, y, startPos1.z);
+            }).SetEase(Ease.InOutSine).OnComplete(() => checkDone());
+
+            // Tile 2 arcs downward
+            DOVirtual.Float(0f, 1f, duration, t =>
+            {
+                if (obj2 == null) return;
+                float x = Mathf.Lerp(startPos2.x, startPos1.x, t);
+                float y = Mathf.Lerp(startPos2.y, startPos1.y, t) - Mathf.Sin(t * Mathf.PI) * arcHeight;
+                obj2.transform.localPosition = new Vector3(x, y, startPos2.z);
+            }).SetEase(Ease.InOutSine).OnComplete(() => checkDone());
+
+            // Scale both tiles down slightly at the midpoint for depth feel
+            obj1.transform.DOScale(obj1.transform.localScale * 0.85f, duration * 0.5f)
+                .SetEase(Ease.OutQuad)
+                .OnComplete(() => obj1.transform.DOScale(obj1.transform.localScale / 0.85f, duration * 0.5f).SetEase(Ease.OutBack));
+
+            obj2.transform.DOScale(obj2.transform.localScale * 0.85f, duration * 0.5f)
+                .SetEase(Ease.OutQuad)
+                .OnComplete(() => obj2.transform.DOScale(obj2.transform.localScale / 0.85f, duration * 0.5f).SetEase(Ease.OutBack));
         }
 
         public void AnimateIceBreak(List<(int row, int col)> icedPositions, System.Action onComplete)

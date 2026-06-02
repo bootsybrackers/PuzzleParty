@@ -22,6 +22,8 @@ namespace PuzzleParty.Board
         [Header("Fail UI")]
         [SerializeField] private TMP_Text titleTextFail;
         [SerializeField] private Button giveUpButton;
+        [SerializeField] private TMP_Text giveUpButtonLabel;
+        [SerializeField] private GameObject giveUpConfirmPanel;
 
         [Header("EGP UI")]
         [SerializeField] private TMP_Text egpOfferText;
@@ -72,6 +74,7 @@ namespace PuzzleParty.Board
 
             StopConfetti();
             HideEGPElements();
+            ResetGiveUpConfirm();
 
             if (titleTextFail != null)
                 titleTextFail.text = "Out of Moves!";
@@ -79,7 +82,7 @@ namespace PuzzleParty.Board
             if (giveUpButton != null)
             {
                 giveUpButton.onClick.RemoveAllListeners();
-                giveUpButton.onClick.AddListener(() => onGiveUp?.Invoke());
+                giveUpButton.onClick.AddListener(() => ShowGiveUpConfirmation(onGiveUp));
             }
 
             ShowOverlayAnimation();
@@ -96,7 +99,7 @@ namespace PuzzleParty.Board
             if (egpOfferText != null)
             {
                 egpOfferText.gameObject.SetActive(true);
-                egpOfferText.text = $"+{offer.contents.extraMoves} moves";
+                egpOfferText.text = $"So close!\n Continue with {offer.contents.extraMoves} extra moves?";
             }
 
             if (egpPriceText != null)
@@ -116,7 +119,7 @@ namespace PuzzleParty.Board
             if (giveUpButton != null)
             {
                 giveUpButton.onClick.RemoveAllListeners();
-                giveUpButton.onClick.AddListener(() => onGiveUp?.Invoke());
+                giveUpButton.onClick.AddListener(() => ShowGiveUpConfirmation(onGiveUp));
             }
 
             ShowOverlayAnimation();
@@ -127,6 +130,7 @@ namespace PuzzleParty.Board
             StopConfetti();
             StopContinueButtonPulseAnimation();
             HideEGPElements();
+            ResetGiveUpConfirm();
             gameObject.SetActive(false);
         }
 
@@ -135,6 +139,30 @@ namespace PuzzleParty.Board
             if (egpContinueButton != null) egpContinueButton.gameObject.SetActive(false);
             if (egpOfferText != null) egpOfferText.gameObject.SetActive(false);
             if (egpPriceText != null) egpPriceText.gameObject.SetActive(false);
+        }
+
+        private void ShowGiveUpConfirmation(System.Action onGiveUp)
+        {
+            if (giveUpConfirmPanel != null)
+                giveUpConfirmPanel.SetActive(true);
+
+            if (giveUpButtonLabel != null)
+                giveUpButtonLabel.text = "Give Up Anyway";
+
+            if (giveUpButton != null)
+            {
+                giveUpButton.onClick.RemoveAllListeners();
+                giveUpButton.onClick.AddListener(() => onGiveUp?.Invoke());
+            }
+        }
+
+        private void ResetGiveUpConfirm()
+        {
+            if (giveUpConfirmPanel != null)
+                giveUpConfirmPanel.SetActive(false);
+
+            if (giveUpButtonLabel != null)
+                giveUpButtonLabel.text = "Give Up";
         }
 
         private void ShowOverlayAnimation()

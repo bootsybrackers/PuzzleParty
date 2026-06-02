@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using DG.Tweening;
 
 namespace PuzzleParty.Service
 {
@@ -43,6 +44,7 @@ namespace PuzzleParty.Service
         // Fade out, then load scene, then fade in
         transitionService.FadeOut(() =>
         {
+            DOTween.KillAll();
             SceneManager.LoadScene(sceneName);
             // Fade in will be called by the new scene's controller
         });

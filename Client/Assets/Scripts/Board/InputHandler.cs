@@ -11,41 +11,56 @@ namespace PuzzleParty.Board
         [SerializeField] private float dragThreshold = 0.2f;
 
         public event System.Action<Vector3, MoveDirection> OnSwipe;
+        public event System.Action<Vector3> OnTap;
 
         private Vector3 mouseDownPosition;
         private bool isDragging = false;
         private bool inputEnabled = false;
+        private bool tapModeEnabled = false;
 
         public void EnableInput() => inputEnabled = true;
         public void DisableInput() => inputEnabled = false;
+        public void EnableTapMode() => tapModeEnabled = true;
+        public void DisableTapMode() => tapModeEnabled = false;
 
         void Update()
         {
-            if (!inputEnabled) return;
-
-            if (Input.GetMouseButtonDown(0))
+            if (inputEnabled)
             {
-                mouseDownPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-                mouseDownPosition.z = 0;
-                isDragging = true;
-            }
-
-            if (Input.GetMouseButton(0) && isDragging)
-            {
-                Vector3 currentPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-                currentPosition.z = 0;
-
-                if (Vector3.Distance(mouseDownPosition, currentPosition) >= dragThreshold)
+                if (Input.GetMouseButtonDown(0))
                 {
-                    MoveDirection direction = GetSwipeDirection(currentPosition - mouseDownPosition);
-                    OnSwipe?.Invoke(mouseDownPosition, direction);
-                    isDragging = false;
+                    mouseDownPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+                    mouseDownPosition.z = 0;
+                    isDragging = true;
                 }
+
+                if (Input.GetMouseButton(0) && isDragging)
+                {
+                    Vector3 currentPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+                    currentPosition.z = 0;
+
+                    if (Vector3.Distance(mouseDownPosition, currentPosition) >= dragThreshold)
+                    {
+                        MoveDirection direction = GetSwipeDirection(currentPosition - mouseDownPosition);
+                        OnSwipe?.Invoke(mouseDownPosition, direction);
+                        isDragging = false;
+                    }
+                }
+
+                if (Input.GetMouseButtonUp(0))
+                    isDragging = false;
             }
 
-            if (Input.GetMouseButtonUp(0))
+            if (tapModeEnabled)
             {
-                isDragging = false;
+                if (Input.GetMouseButtonDown(0))
+                {
+                    mouseDownPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+                    mouseDownPosition.z = 0;
+                }
+
+                if (Input.GetMouseButtonUp(0))
+                    OnTap?.Invoke(mouseDownPosition);
             }
         }
 

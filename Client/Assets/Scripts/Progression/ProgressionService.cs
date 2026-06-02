@@ -7,7 +7,7 @@ namespace PuzzleParty.Progressions
     public class ProgressionService : IProgressionService
     {
         // Set to true to reset progression every time the game starts (development only)
-        private const bool RESET_PROGRESSION_ON_STARTUP = true;
+        private const bool RESET_PROGRESSION_ON_STARTUP = false;
         private static bool hasResetThisSession = false;
 
         private static string SavePath => Path.Combine(Application.persistentDataPath, "progression.json");

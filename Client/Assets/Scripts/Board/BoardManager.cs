@@ -69,8 +69,11 @@ namespace PuzzleParty.Board
             // Store initial board state (complete image, no holes)
             initialBoard = CloneBoard(board);
 
-            // Scramble and add holes
-            ScrambleBoard();
+            // Scramble (mode-specific)
+            if (level.GameMode == GameMode.Switch)
+                ScrambleBoardSwitch();
+            else
+                ScrambleBoard();
 
             // Apply locks to tiles at locked POSITIONS (after scramble)
             ApplyLocksToPositions();
@@ -307,13 +310,81 @@ namespace PuzzleParty.Board
                 board[tempRow][tempCol] = savedTile; // fallback
         }
 
-        private int CountCorrectInSection(List<int> rowIndices)
+        private void ScrambleBoardSwitch()
+        {
+            HashSet<int> iceRowSet = GetIceRowSet();
+
+            var icedRows = new List<int>();
+            var nonIcedRows = new List<int>();
+            for (int i = 0; i < level.Rows; i++)
+            {
+                if (iceRowSet.Contains(i)) icedRows.Add(i);
+                else nonIcedRows.Add(i);
+            }
+
+            if (nonIcedRows.Count > 0) ScrambleSectionSwitch(nonIcedRows);
+            if (icedRows.Count > 0) ScrambleSectionSwitch(icedRows);
+        }
+
+        private void ScrambleSectionSwitch(List<int> rowIndices)
+        {
+            System.Random rnd = new System.Random();
+
+            List<(int row, int col)> positions = new List<(int row, int col)>();
+            foreach (int r in rowIndices)
+                for (int c = 0; c < level.Columns; c++)
+                    if (board[r][c] != null)
+                        positions.Add((r, c));
+
+            if (positions.Count < 2) return;
+
+            int scrambleMoves = positions.Count * 5;
+            int maxAttempts = 15;
+            BoardTile[][] bestBoard = null;
+            int lowestCorrect = int.MaxValue;
+
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                BoardTile[][] attemptBoard = CloneBoard(board);
+
+                for (int m = 0; m < scrambleMoves; m++)
+                {
+                    int a = rnd.Next(positions.Count);
+                    int b = rnd.Next(positions.Count);
+                    while (b == a) b = rnd.Next(positions.Count);
+
+                    var (r1, c1) = positions[a];
+                    var (r2, c2) = positions[b];
+
+                    BoardTile temp = attemptBoard[r1][c1];
+                    attemptBoard[r1][c1] = attemptBoard[r2][c2];
+                    attemptBoard[r2][c2] = temp;
+                }
+
+                int correct = CountCorrectInSection(rowIndices, attemptBoard);
+                if (correct < lowestCorrect)
+                {
+                    lowestCorrect = correct;
+                    bestBoard = CloneBoard(attemptBoard);
+                }
+
+                if (correct < 2) break;
+            }
+
+            if (bestBoard != null)
+                board = bestBoard;
+        }
+
+        private int CountCorrectInSection(List<int> rowIndices) =>
+            CountCorrectInSection(rowIndices, board);
+
+        private int CountCorrectInSection(List<int> rowIndices, BoardTile[][] b)
         {
             int count = 0;
             foreach (int r in rowIndices)
                 for (int c = 0; c < level.Columns; c++)
                 {
-                    BoardTile tile = board[r][c];
+                    BoardTile tile = b[r][c];
                     if (tile != null && tile.Row == r && tile.Column == c)
                         count++;
                 }
@@ -427,6 +498,36 @@ namespace PuzzleParty.Board
             return clone;
         }
 
+        /// <summary>
+        /// Directly swaps two tiles on the board. Used by the swap power-up — costs no moves.
+        /// </summary>
+        public void PowerUpSwapTiles(BoardTile tile1, BoardTile tile2)
+        {
+            int row1 = -1, col1 = -1, row2 = -1, col2 = -1;
+
+            for (int i = 0; i < board.Length; i++)
+            {
+                for (int j = 0; j < board[i].Length; j++)
+                {
+                    if (board[i][j] == null) continue;
+                    if (board[i][j].Row == tile1.Row && board[i][j].Column == tile1.Column)
+                    { row1 = i; col1 = j; }
+                    else if (board[i][j].Row == tile2.Row && board[i][j].Column == tile2.Column)
+                    { row2 = i; col2 = j; }
+                }
+            }
+
+            if (row1 == -1 || row2 == -1)
+            {
+                Debug.LogWarning("PowerUpSwapTiles: could not find one or both tiles");
+                return;
+            }
+
+            BoardTile temp = board[row1][col1];
+            board[row1][col1] = board[row2][col2];
+            board[row2][col2] = temp;
+        }
+
         public bool CanMoveTile(BoardTile tile, MoveDirection direction)
         {
             if (tile.IsLocked)
@@ -484,7 +585,15 @@ namespace PuzzleParty.Board
                 return false;
             }
 
-            // Check if target position is empty
+            if (level.GameMode == GameMode.Switch)
+            {
+                // Target must be in bounds — any occupied tile is a valid swap target
+                // unless it's also locked or iced
+                BoardTile targetTile = board[targetRow][targetCol];
+                return targetTile != null && !targetTile.IsLocked && !targetTile.IsIced;
+            }
+
+            // Slide mode: target must be empty
             return board[targetRow][targetCol] == null;
         }
 
@@ -527,9 +636,19 @@ namespace PuzzleParty.Board
                     break;
             }
 
-            // Move the tile
-            board[targetRow][targetCol] = board[currentRow][currentCol];
-            board[currentRow][currentCol] = null;
+            if (level.GameMode == GameMode.Switch)
+            {
+                // Swap the two tiles
+                BoardTile temp = board[targetRow][targetCol];
+                board[targetRow][targetCol] = board[currentRow][currentCol];
+                board[currentRow][currentCol] = temp;
+            }
+            else
+            {
+                // Slide into empty space
+                board[targetRow][targetCol] = board[currentRow][currentCol];
+                board[currentRow][currentCol] = null;
+            }
 
             // Decrement moves
             movesLeft--;

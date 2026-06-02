@@ -10,6 +10,7 @@ namespace webapi.Models
         public string? Id { get; set; }
 
         public string DeviceId { get; set; } = null!;
+        public string UserId { get; set; } = null!;
         public string EventType { get; set; } = null!;
         public Dictionary<string, string> Data { get; set; } = new();
         public DateTime ClientTimestamp { get; set; }
@@ -19,6 +20,7 @@ namespace webapi.Models
     public class BatchEventsRequest
     {
         public string DeviceId { get; set; } = null!;
+        public string UserId { get; set; } = null!;
         public List<GameEvent> Events { get; set; } = new();
     }
 }

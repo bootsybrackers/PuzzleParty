@@ -4,5 +4,6 @@
     "moves": "50",
     "holes": "2",
     "columns": "3",
-    "rows": "4"
+    "rows": "4",
+    "game_mode": "switch"
 }

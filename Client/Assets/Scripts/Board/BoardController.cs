@@ -30,6 +30,7 @@ namespace PuzzleParty.Board
         private ISceneLoader sceneLoader;
         private ITransitionService transitionService;
         private IEGPService egpService;
+        private IBackendSyncService backendSync;
         private BoardView boardView;
         private BoardManager boardManager;
         private Level currentLevel;
@@ -38,6 +39,9 @@ namespace PuzzleParty.Board
 
         // Power-up tracking
         private bool hasUsedCompletePuzzle = false;
+        private bool hasUsedSlot = false;
+        private bool isSwapModeActive = false;
+        private BoardTile swapFirstTile = null;
 
         void Start()
         {
@@ -47,10 +51,20 @@ namespace PuzzleParty.Board
             sceneLoader = ServiceLocator.GetInstance().Get<SceneLoader>();
             transitionService = ServiceLocator.GetInstance().Get<TransitionService>();
             egpService = ServiceLocator.GetInstance().Get<EGPService>();
-            SetupLevel();
+            backendSync = ServiceLocator.GetInstance().Get<BackendSyncService>();
 
             // Fade in from black when scene starts
             transitionService.FadeIn();
+
+            if (backendSync.IsReady)
+            {
+                SetupLevel();
+            }
+            else
+            {
+                Debug.Log("[BoardController] Waiting for backend init before loading level");
+                backendSync.OnReady += SetupLevel;
+            }
         }
 
         void Update()
@@ -106,8 +120,11 @@ namespace PuzzleParty.Board
 
         void SetupLevel()
         {
+            Debug.Log($"[BoardController] SetupLevel called — backendSync.IsReady={backendSync?.IsReady}");
             egpService.ResetRounds();
             currentLevel = levelService.GetNextLevel();
+            Debug.Log($"[BoardController] Loading level {currentLevel.Id}");
+            backendSync?.TrackEvent("game_start", new Dictionary<string, string> { { "level", currentLevel.Id.ToString() } });
             boardManager = new BoardManager(currentLevel);
             boardManager.Init();
 
@@ -131,7 +148,11 @@ namespace PuzzleParty.Board
 
             // Reset power-up usage for this level
             hasUsedCompletePuzzle = false;
+            hasUsedSlot = false;
+            isSwapModeActive = false;
+            swapFirstTile = null;
             SetupPowerUpButton();
+            SetupSlotButton();
 
             // Enable powerup buttons based on streak
             if (uiElements.completePuzzleButton != null)
@@ -220,6 +241,7 @@ namespace PuzzleParty.Board
         void OnPuzzleSolved()
         {
             inputHandler.DisableInput();
+            backendSync?.TrackEvent("game_end", new Dictionary<string, string> { { "level", currentLevel.Id.ToString() }, { "end_reason", "success" } });
 
             // Calculate coins earned (1 coin per remaining move)
             int coinsEarned = boardManager.MovesLeft;
@@ -235,6 +257,7 @@ namespace PuzzleParty.Board
 
             // Increment streak on win
             progressionService.IncrementStreak();
+            _ = backendSync?.SyncAsync();
 
             // Fill holes to show complete image, then show success overlay
             boardView.FillHolesAndShowOverlay(
@@ -314,7 +337,9 @@ namespace PuzzleParty.Board
 
         void GiveUp()
         {
+            backendSync?.TrackEvent("game_end", new Dictionary<string, string> { { "level", currentLevel.Id.ToString() }, { "end_reason", "fail" } });
             progressionService.ResetStreak();
+            _ = backendSync?.SyncAsync();
             sceneLoader.LoadMainMenu();
         }
 
@@ -414,6 +439,99 @@ namespace PuzzleParty.Board
                     inputHandler.EnableInput();
                 });
             }
+        }
+
+        void SetupSlotButton()
+        {
+            if (uiElements.slotButton == null) return;
+            uiElements.slotButton.onClick.RemoveAllListeners();
+            uiElements.slotButton.onClick.AddListener(OnSlotButtonClicked);
+            uiElements.slotButton.interactable = true;
+        }
+
+        void OnSlotButtonClicked()
+        {
+            if (hasUsedSlot || isSwapModeActive) return;
+
+            hasUsedSlot = true;
+            if (uiElements.slotButton != null)
+                uiElements.slotButton.interactable = false;
+
+            isSwapModeActive = true;
+            swapFirstTile = null;
+
+            inputHandler.DisableInput();
+            inputHandler.EnableTapMode();
+            inputHandler.OnTap += OnSwapTileTapped;
+
+            boardView.ShowSwapMode();
+        }
+
+        void OnSwapTileTapped(Vector3 worldPos)
+        {
+            BoardTile tapped = boardView.GetTileAtPosition(worldPos);
+            if (tapped == null) return;
+
+            // Resolve the tile's current state from the board
+            BoardTile[][] currentBoard = boardManager.GetCurrentBoard();
+            BoardTile actualTile = null;
+            for (int i = 0; i < currentBoard.Length; i++)
+            {
+                for (int j = 0; j < currentBoard[i].Length; j++)
+                {
+                    BoardTile t = currentBoard[i][j];
+                    if (t != null && t.Row == tapped.Row && t.Column == tapped.Column)
+                    { actualTile = t; break; }
+                }
+                if (actualTile != null) break;
+            }
+
+            if (actualTile == null || actualTile.IsLocked || actualTile.IsIced) return;
+
+            if (swapFirstTile == null)
+            {
+                swapFirstTile = actualTile;
+                boardView.ShowTileSelectedForSwap(actualTile.Row, actualTile.Column);
+            }
+            else
+            {
+                // Same tile tapped again — deselect
+                if (swapFirstTile.Row == actualTile.Row && swapFirstTile.Column == actualTile.Column)
+                {
+                    swapFirstTile = null;
+                    boardView.ClearTileSelection();
+                    return;
+                }
+
+                BoardTile tile1 = swapFirstTile;
+                BoardTile tile2 = actualTile;
+
+                ExitSwapMode();
+
+                boardManager.PowerUpSwapTiles(tile1, tile2);
+
+                boardView.AnimateTileSwap(tile1, tile2, () =>
+                {
+                    CheckForCorrectlyPlacedTiles();
+                    CheckAndUnlockTiles();
+                    CheckAndBreakIce();
+
+                    if (boardManager.IsSolved)
+                        OnPuzzleSolved();
+                });
+
+                boardView.UpdateMovesDisplay(boardManager.MovesLeft);
+            }
+        }
+
+        void ExitSwapMode()
+        {
+            isSwapModeActive = false;
+            swapFirstTile = null;
+            inputHandler.OnTap -= OnSwapTileTapped;
+            inputHandler.DisableTapMode();
+            boardView.HideSwapMode();
+            inputHandler.EnableInput();
         }
 
     }

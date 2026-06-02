@@ -17,17 +17,29 @@ namespace webapi.Repositories
             _logger = logger;
         }
 
-        public async Task<User?> GetByDeviceIdAsync(string deviceId)
+        public async Task<User?> GetByUserIdAsync(string userId)
         {
-            return await _collection.Find(u => u.DeviceId == deviceId).FirstOrDefaultAsync();
+            return await _collection.Find(u => u.UserId == userId).FirstOrDefaultAsync();
         }
 
-        public async Task UpsertAsync(User user)
+        public async Task<User> CreateAsync(User user)
         {
-            var filter = Builders<User>.Filter.Eq(u => u.DeviceId, user.DeviceId);
-            var options = new ReplaceOptions { IsUpsert = true };
-            await _collection.ReplaceOneAsync(filter, user, options);
-            _logger.LogDebug("Upserted user {DeviceId}", user.DeviceId);
+            await _collection.InsertOneAsync(user);
+            _logger.LogDebug("Created user {UserId} for device {DeviceId}", user.UserId, user.DeviceId);
+            return user;
+        }
+
+        public async Task UpdateProgressionAsync(string userId, int lastBeatenLevel, int coins, int streak)
+        {
+            var filter = Builders<User>.Filter.Eq(u => u.UserId, userId);
+            var update = Builders<User>.Update
+                .Set(u => u.LastBeatenLevel, lastBeatenLevel)
+                .Set(u => u.Coins, coins)
+                .Set(u => u.Streak, streak)
+                .Set(u => u.LastSyncedAt, DateTime.UtcNow);
+            await _collection.UpdateOneAsync(filter, update);
+            _logger.LogInformation("Updated progression for user {UserId} — level={Level}, coins={Coins}, streak={Streak}",
+                userId, lastBeatenLevel, coins, streak);
         }
     }
 }

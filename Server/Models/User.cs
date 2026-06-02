@@ -7,6 +7,8 @@ namespace webapi.Models
     {
         [BsonId]
         [BsonRepresentation(BsonType.String)]
+        public string UserId { get; set; } = null!;
+
         public string DeviceId { get; set; } = null!;
 
         public int LastBeatenLevel { get; set; }

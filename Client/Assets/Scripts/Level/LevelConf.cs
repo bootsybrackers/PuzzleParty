@@ -15,6 +15,7 @@ namespace PuzzleParty.Levels
         public int moves;
         public int holes;
         public string name;
+        public string game_mode; // "slide" or "switch"
         public LockedTile[] locked_tiles;
         public int[] ice_rows;
     }

@@ -49,8 +49,9 @@ MonoBehaviour:
   confettiSize: {x: 12, y: 20}
   confettiFallDuration: 2.5
   confettiSpinSpeed: 360
-  confettiHorizontalDrift: 80
-  confettiBurstCount: 100
+  confettiHorizontalDrift: 30
+  confettiBurstCount: 40
+  maxActiveConfetti: 60
   confettiColors:
   - {r: 1, g: 0.2, b: 0.3, a: 1}
   - {r: 1, g: 0.8, b: 0.2, a: 1}

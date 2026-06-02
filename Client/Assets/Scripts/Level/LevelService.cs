@@ -35,6 +35,8 @@ namespace PuzzleParty.Levels
                 level.IceRows.Add(row);
         }
 
+        level.GameMode = lc.game_mode == "switch" ? GameMode.Switch : GameMode.Slide;
+
         return level;
     }
 

@@ -21,6 +21,7 @@ namespace PuzzleParty.UI
     private ISceneLoader sceneLoader;
     private IProgressionService progressionService;
     private ITransitionService transitionService;
+    private IBackendSyncService backendSync;
 
     void Start()
     {
@@ -28,6 +29,7 @@ namespace PuzzleParty.UI
         sceneLoader = ServiceLocator.GetInstance().Get<SceneLoader>();
         progressionService = ServiceLocator.GetInstance().Get<ProgressionService>();
         transitionService = ServiceLocator.GetInstance().Get<TransitionService>();
+        backendSync = ServiceLocator.GetInstance().Get<BackendSyncService>();
 
         // Fade in from black when scene starts
         transitionService.FadeIn(() =>
@@ -41,9 +43,6 @@ namespace PuzzleParty.UI
     {
         float startTime = Time.time;
         float progress = 0f;
-
-        //Remove old progression. Just for dev mode
-        progressionService.WipeProgression();
 
         // Simulate loading resources (you can replace this with actual resource loading)
         while (progress < 1f)
@@ -71,6 +70,9 @@ namespace PuzzleParty.UI
         {
             yield return new WaitForSeconds(minimumLoadingTime - elapsedTime);
         }
+
+        // Wait for backend login/install to finish so server progression is applied before MainMenu reads it
+        yield return new WaitUntil(() => backendSync.IsReady);
 
         // Loading complete, go to main menu
         sceneLoader.LoadMainMenu();
