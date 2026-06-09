@@ -35,4 +35,7 @@ Server/bin/
 Server/obj/
 Server/appsettings.Development.json
 
+# Level staging area
+Client/Assets/StreamingAssets/new-levels/
+
 # Docker
