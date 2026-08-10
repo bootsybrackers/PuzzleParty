@@ -193,8 +193,11 @@ namespace PuzzleParty.UI
         public void AddLevelMarker(int levelId, string levelName, bool isCompleted, int page = 0)
         {
             if (levelMarkerPrefab == null)
+                levelMarkerPrefab = Resources.Load<GameObject>("Prefabs/LevelMarker");
+
+            if (levelMarkerPrefab == null)
             {
-                Debug.LogError("levelMarkerPrefab is NULL!");
+                Debug.LogError("LevelMarker prefab not found at Resources/Prefabs/LevelMarker!");
                 return;
             }
 

@@ -1,8 +1,11 @@
 {
     "id": 35,
-    "name": "Level 35",
-    "moves": "50",
-    "holes": "2",
-    "columns": "3",
-    "rows": "4"
+    "rows": 4,
+    "columns": 3,
+    "moves": 50,
+    "holes": 2,
+    "name": "São Paulo",
+    "game_mode": "switch",
+    "locked_tiles": [],
+    "ice_rows": []
 }

@@ -1,8 +1,9 @@
 {
     "id": 28,
-    "name": "Level 28",
+    "name": "Cartagena",
     "moves": "50",
     "holes": "2",
     "columns": "3",
-    "rows": "4"
+    "rows": "4",
+    "game_mode": "switch"
 }

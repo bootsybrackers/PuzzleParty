@@ -1,8 +1,16 @@
 {
     "id": 27,
-    "name": "Level 27",
-    "moves": "50",
-    "holes": "2",
-    "columns": "3",
-    "rows": "4"
+    "rows": 4,
+    "columns": 3,
+    "moves": 50,
+    "holes": 2,
+    "name": "Caracas",
+    "game_mode": "switch",
+    "locked_tiles": [
+        {
+            "row": 1,
+            "column": 1
+        }
+    ],
+    "ice_rows": []
 }

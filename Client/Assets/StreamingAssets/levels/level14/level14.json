@@ -1,8 +1,8 @@
 {
     "id": 14,
     "name": "Chicago",
-    "moves": "50",
-    "holes": "1",
+    "moves": "100",
+    "holes": "2",
     "columns": "4",
     "rows": "7"
 }

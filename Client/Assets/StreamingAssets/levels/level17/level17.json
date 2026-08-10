@@ -2,7 +2,7 @@
     "id": 17,
     "name": "Los Angeles",
     "moves": "50",
-    "holes": "1",
-    "columns": "4",
-    "rows": "7"
+    "holes": "2",
+    "columns": "3",
+    "rows": "4"
 }

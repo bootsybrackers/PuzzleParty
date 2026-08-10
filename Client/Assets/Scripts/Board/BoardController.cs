@@ -122,7 +122,13 @@ namespace PuzzleParty.Board
         {
             Debug.Log($"[BoardController] SetupLevel called — backendSync.IsReady={backendSync?.IsReady}");
             egpService.ResetRounds();
+#if UNITY_EDITOR
+            // Level Editor "Test Level" override: launch a specific level regardless of progression.
+            int forcedLevel = PlayerPrefs.GetInt("EditorForceLevel", -1);
+            currentLevel = forcedLevel > 0 ? levelService.GetLevel(forcedLevel) : levelService.GetNextLevel();
+#else
             currentLevel = levelService.GetNextLevel();
+#endif
             Debug.Log($"[BoardController] Loading level {currentLevel.Id}");
             backendSync?.TrackEvent("game_start", new Dictionary<string, string> { { "level", currentLevel.Id.ToString() } });
             boardManager = new BoardManager(currentLevel);
