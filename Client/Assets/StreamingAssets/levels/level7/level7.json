@@ -1,9 +1,11 @@
 {
     "id": 7,
+    "rows": 5,
+    "columns": 4,
+    "moves": 60,
+    "holes": 2,
     "name": "Amsterdam",
-    "moves": "60",
-    "holes": "1",
-    "columns": "3",
-    "rows": "5"
-
+    "game_mode": "slide",
+    "locked_tiles": [],
+    "ice_rows": []
 }

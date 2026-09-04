@@ -1,9 +1,11 @@
 {
     "id": 10,
+    "rows": 5,
+    "columns": 3,
+    "moves": 50,
+    "holes": 2,
     "name": "Budapest",
-    "moves": "50",
-    "holes": "2",
-    "columns": "3",
-    "rows": "5"
-
+    "game_mode": "slide",
+    "locked_tiles": [],
+    "ice_rows": []
 }

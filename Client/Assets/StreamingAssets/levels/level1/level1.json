@@ -1,9 +1,11 @@
 {
     "id": 1,
+    "rows": 4,
+    "columns": 3,
+    "moves": 50,
+    "holes": 2,
     "name": "Paris",
-    "moves": "50",
-    "holes": "2",
-    "columns": "3",
-    "rows": "4",
-    "game_mode": "switch"
+    "game_mode": "slide",
+    "locked_tiles": [],
+    "ice_rows": []
 }

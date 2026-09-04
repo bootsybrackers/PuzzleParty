@@ -1,9 +1,16 @@
 {
     "id": 6,
+    "rows": 5,
+    "columns": 3,
+    "moves": 50,
+    "holes": 2,
     "name": "London",
-    "moves": "50",
-    "holes": "2",
-    "columns": "3",
-    "rows": "5"
-
+    "game_mode": "slide",
+    "locked_tiles": [
+        {
+            "row": 0,
+            "column": 2
+        }
+    ],
+    "ice_rows": []
 }

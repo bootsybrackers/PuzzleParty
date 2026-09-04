@@ -1,9 +1,20 @@
 {
     "id": 11,
-    "name": "Copenhagen",
-    "moves": "50",
-    "holes": "1",
-    "columns": "3",
-    "rows": "5"
-
+    "rows": 5,
+    "columns": 3,
+    "moves": 70,
+    "holes": 2,
+    "name": "Lisbon",
+    "game_mode": "slide",
+    "locked_tiles": [
+        {
+            "row": 0,
+            "column": 0
+        },
+        {
+            "row": 0,
+            "column": 2
+        }
+    ],
+    "ice_rows": []
 }

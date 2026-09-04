@@ -1,9 +1,11 @@
 {
     "id": 3,
-    "name": "Rome",
-    "moves": "50",
-    "holes": "2",
-    "columns": "3",
-    "rows": "5"
-
+    "rows": 5,
+    "columns": 3,
+    "moves": 50,
+    "holes": 2,
+    "name": "Vienna",
+    "game_mode": "slide",
+    "locked_tiles": [],
+    "ice_rows": []
 }
