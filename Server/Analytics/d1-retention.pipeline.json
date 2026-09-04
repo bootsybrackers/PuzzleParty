@@ -1,0 +1,54 @@
+[
+  { "$match": { "EventType": { "$in": ["app_install", "game_start"] } } },
+  { "$setWindowFields": {
+      "sortBy": { "ServerTimestamp": 1 },
+      "output": {
+        "dataHorizon": { "$max": "$ServerTimestamp", "window": { "documents": ["unbounded", "unbounded"] } }
+      }
+  }},
+  { "$group": {
+      "_id": "$UserId",
+      "installDay": {
+        "$min": {
+          "$cond": [
+            { "$eq": ["$EventType", "app_install"] },
+            { "$dateTrunc": { "date": "$ServerTimestamp", "unit": "day" } },
+            "$$REMOVE"
+          ]
+        }
+      },
+      "activeDays": {
+        "$addToSet": {
+          "$cond": [
+            { "$eq": ["$EventType", "game_start"] },
+            { "$dateTrunc": { "date": "$ServerTimestamp", "unit": "day" } },
+            "$$REMOVE"
+          ]
+        }
+      },
+      "dataHorizon": { "$max": "$dataHorizon" }
+  }},
+  { "$match": { "installDay": { "$ne": null } } },
+  { "$addFields": {
+      "d1Day": { "$dateAdd": { "startDate": "$installDay", "unit": "day", "amount": 1 } }
+  }},
+  { "$addFields": {
+      "returnedD1": { "$in": ["$d1Day", "$activeDays"] }
+  }},
+  { "$match": { "$expr": { "$lte": ["$d1Day", "$dataHorizon"] } } },
+  { "$group": {
+      "_id": "$installDay",
+      "cohortSize": { "$sum": 1 },
+      "retainedD1": { "$sum": { "$cond": ["$returnedD1", 1, 0] } }
+  }},
+  { "$addFields": {
+      "d1RetentionPct": {
+        "$round": [
+          { "$multiply": [ { "$divide": ["$retainedD1", "$cohortSize"] }, 100 ] },
+          1
+        ]
+      }
+  }},
+  { "$sort": { "_id": 1 } },
+  { "$project": { "_id": 0, "cohortDay": "$_id", "cohortSize": 1, "retainedD1": 1, "d1RetentionPct": 1 } }
+]

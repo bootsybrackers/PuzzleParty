@@ -74,5 +74,18 @@ namespace PuzzleParty.Maps
             // Map is unlocked if player has reached or passed its start level
             return lastBeatenLevel >= map.startLevel - 1;
         }
+
+        /// <summary>
+        /// True once the player has beaten the last level of the last configured map - i.e.
+        /// there is currently no next level or next map to send them to.
+        /// </summary>
+        public bool IsOutOfContent(int lastBeatenLevel)
+        {
+            if (mapsConfig.maps.Length == 0)
+                return false;
+
+            Map lastMap = mapsConfig.maps[mapsConfig.maps.Length - 1];
+            return lastBeatenLevel >= lastMap.endLevel;
+        }
     }
 }

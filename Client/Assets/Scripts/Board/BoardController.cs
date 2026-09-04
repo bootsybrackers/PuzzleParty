@@ -170,15 +170,17 @@ namespace PuzzleParty.Board
                 uiElements.slotButton.gameObject.SetActive(currentStreak >= 3);
             }
 
-            // Apply moves bonus if streak >= 2
+            // Apply moves bonus if streak >= 2. Applied to the underlying move count now
+            // (gameplay is locked until the banner sequence below finishes anyway), but the
+            // moves counter itself stays showing the original value and animates up to this
+            // once the banner sequence reaches the moves icon - see BoardView.StartAnimation.
             if (currentStreak >= 2)
             {
                 boardManager.AddMoves(20);
-                boardView.UpdateMovesDisplay(boardManager.MovesLeft);
             }
 
             // Start the animation sequence with welcome text and scaling
-            boardView.StartAnimation(() => {
+            boardView.StartAnimation(boardManager.MovesLeft, () => {
                 // After showing complete puzzle, animate the scramble
                 boardView.AnimateScramble(boardManager.GetCurrentBoard(), () => {
                     // Do the first check to mark initially correct tiles without showing particles
@@ -476,7 +478,28 @@ namespace PuzzleParty.Board
         void OnSwapTileTapped(Vector3 worldPos)
         {
             BoardTile tapped = boardView.GetTileAtPosition(worldPos);
-            if (tapped == null) return;
+
+            // Nothing under the tap point — see if it's an empty hole we can move the
+            // already-selected tile into instead.
+            if (tapped == null)
+            {
+                if (swapFirstTile == null) return;
+                if (!boardView.TryGetGridPosition(worldPos, out int targetRow, out int targetCol)) return;
+
+                BoardTile[][] board = boardManager.GetCurrentBoard();
+                if (targetRow < 0 || targetRow >= board.Length ||
+                    targetCol < 0 || targetCol >= board[targetRow].Length) return;
+                if (board[targetRow][targetCol] != null) return; // not actually a hole
+
+                BoardTile tileToMove = swapFirstTile;
+                ExitSwapMode();
+
+                if (!boardManager.PowerUpMoveTileToHole(tileToMove, targetRow, targetCol)) return;
+
+                boardView.AnimateTileMoveToHole(tileToMove, targetRow, targetCol, OnPowerUpMoveResolved);
+                boardView.UpdateMovesDisplay(boardManager.MovesLeft);
+                return;
+            }
 
             // Resolve the tile's current state from the board
             BoardTile[][] currentBoard = boardManager.GetCurrentBoard();
@@ -516,18 +539,20 @@ namespace PuzzleParty.Board
 
                 boardManager.PowerUpSwapTiles(tile1, tile2);
 
-                boardView.AnimateTileSwap(tile1, tile2, () =>
-                {
-                    CheckForCorrectlyPlacedTiles();
-                    CheckAndUnlockTiles();
-                    CheckAndBreakIce();
-
-                    if (boardManager.IsSolved)
-                        OnPuzzleSolved();
-                });
+                boardView.AnimateTileSwap(tile1, tile2, OnPowerUpMoveResolved);
 
                 boardView.UpdateMovesDisplay(boardManager.MovesLeft);
             }
+        }
+
+        void OnPowerUpMoveResolved()
+        {
+            CheckForCorrectlyPlacedTiles();
+            CheckAndUnlockTiles();
+            CheckAndBreakIce();
+
+            if (boardManager.IsSolved)
+                OnPuzzleSolved();
         }
 
         void ExitSwapMode()

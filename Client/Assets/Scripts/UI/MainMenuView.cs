@@ -128,6 +128,46 @@ namespace PuzzleParty.UI
         }
 
         /// <summary>
+        /// Puts the atlas straight into its fully-open state with no animation.
+        /// Used when a full-screen overlay (e.g. map completion) is about to cover
+        /// the menu anyway, so the book-opening flourish would only add a delay.
+        /// </summary>
+        public void SetOpenImmediate()
+        {
+            isOpen = true;
+
+            if (atlasContainer != null)
+            {
+                atlasContainer.DOKill();
+                atlasContainer.localScale = Vector3.one;
+            }
+
+            if (mapNameText != null)
+            {
+                CanvasGroup canvasGroup = mapNameText.GetComponent<CanvasGroup>();
+                if (canvasGroup == null)
+                {
+                    canvasGroup = mapNameText.gameObject.AddComponent<CanvasGroup>();
+                }
+                canvasGroup.alpha = 1f;
+            }
+
+            if (leftLevelMarkersContainer != null)
+                foreach (Transform t in leftLevelMarkersContainer)
+                {
+                    var v = t.GetComponent<LevelMarkerView>();
+                    if (v != null) v.ShowImmediate();
+                }
+
+            if (rightLevelMarkersContainer != null)
+                foreach (Transform t in rightLevelMarkersContainer)
+                {
+                    var v = t.GetComponent<LevelMarkerView>();
+                    if (v != null) v.ShowImmediate();
+                }
+        }
+
+        /// <summary>
         /// Animates a new level marker appearing (when player completes a level)
         /// </summary>
         public void AnimateNewLevelCompletion(int levelIndex)

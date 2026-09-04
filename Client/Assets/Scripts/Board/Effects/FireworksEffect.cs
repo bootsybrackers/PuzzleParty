@@ -44,12 +44,27 @@ namespace PuzzleParty.Board.Effects
         private Transform canvasParent;
         private Sprite circleSprite;
 
+        // Size of the canvas we're spawning into, in its own local (anchoredPosition) units.
+        // Used to convert the "pixel space, bottom-left origin" coordinates used throughout
+        // this script into positions relative to the canvas's own rect. Reading these from
+        // Screen.width/height and writing straight to Transform.position only lines up for a
+        // Screen Space - Overlay canvas; a Screen Space - Camera canvas (e.g. the main menu)
+        // sits on a plane in front of its camera, so raw pixel values as a world position
+        // land nowhere near the visible area.
+        private float canvasWidth;
+        private float canvasHeight;
+
         // ─── Public API ───────────────────────────────────────────────────────
 
         public void Play(Transform canvasParent)
         {
             this.canvasParent = canvasParent;
             circleSprite = CreateCircleSprite();
+
+            RectTransform canvasRect = canvasParent as RectTransform ?? canvasParent.GetComponent<RectTransform>();
+            canvasWidth = canvasRect != null ? canvasRect.rect.width : Screen.width;
+            canvasHeight = canvasRect != null ? canvasRect.rect.height : Screen.height;
+
             launchCoroutine = StartCoroutine(LaunchLoop());
         }
 
@@ -84,8 +99,8 @@ namespace PuzzleParty.Board.Effects
 
         private void FireVolley()
         {
-            float sw = Screen.width;
-            float sh = Screen.height;
+            float sw = canvasWidth;
+            float sh = canvasHeight;
             float xMin = sw * shellXMarginFraction;
             float xMax = sw * (1f - shellXMarginFraction);
 
@@ -113,7 +128,7 @@ namespace PuzzleParty.Board.Effects
             bool burst = false;
 
             shell.GetComponent<RectTransform>()
-                .DOMove(apex, shellRiseTime)
+                .DOAnchorPos(ToCanvasLocal(apex), shellRiseTime)
                 .SetEase(Ease.OutQuad)
                 .SetLink(shell)
                 .OnComplete(() =>
@@ -162,7 +177,7 @@ namespace PuzzleParty.Board.Effects
                 var rt  = p.GetComponent<RectTransform>();
                 var img = p.GetComponent<Image>();
 
-                rt.DOMove(target, burstDuration).SetEase(Ease.OutQuad).SetLink(p)
+                rt.DOAnchorPos(ToCanvasLocal(target), burstDuration).SetEase(Ease.OutQuad).SetLink(p)
                     .OnComplete(() => { if (p != null) { activeParticles.Remove(p); Destroy(p); } });
                 img.DOFade(0f, burstDuration * 0.45f).SetDelay(burstDuration * 0.55f).SetLink(p);
                 rt.DOScale(0f, burstDuration * 0.35f).SetDelay(burstDuration * 0.65f).SetLink(p);
@@ -183,7 +198,7 @@ namespace PuzzleParty.Board.Effects
                 float dur   = Random.Range(0.45f, 0.95f);
                 float dly   = Random.Range(0.08f, 0.35f);
 
-                rt.DOMove(ep, dur).SetEase(Ease.InQuad).SetDelay(dly).SetLink(t)
+                rt.DOAnchorPos(ToCanvasLocal(ep), dur).SetEase(Ease.InQuad).SetDelay(dly).SetLink(t)
                     .OnComplete(() => { if (t != null) { activeParticles.Remove(t); Destroy(t); } });
                 img.DOFade(0f, dur * 0.4f).SetDelay(dly + dur * 0.6f).SetLink(t);
             }
@@ -191,7 +206,7 @@ namespace PuzzleParty.Board.Effects
 
         // ─── Helpers ──────────────────────────────────────────────────────────
 
-        private GameObject SpawnDot(float size, Color color, Vector3 worldPos)
+        private GameObject SpawnDot(float size, Color color, Vector3 pixelPos)
         {
             var go  = new GameObject("FW");
             go.transform.SetParent(canvasParent, false);
@@ -201,9 +216,19 @@ namespace PuzzleParty.Board.Effects
             img.raycastTarget = false;
             var rt = go.GetComponent<RectTransform>();
             rt.sizeDelta = new Vector2(size, size);
-            rt.position  = worldPos;
+            rt.anchoredPosition = ToCanvasLocal(pixelPos);
             activeParticles.Add(go);
             return go;
+        }
+
+        /// <summary>
+        /// Converts a "pixel space, bottom-left origin" position (the coordinate system used
+        /// throughout this script) into an anchoredPosition relative to the canvas's own rect,
+        /// so placement is correct regardless of the canvas's render mode.
+        /// </summary>
+        private Vector2 ToCanvasLocal(Vector3 pixelPos)
+        {
+            return new Vector2(pixelPos.x - canvasWidth * 0.5f, pixelPos.y - canvasHeight * 0.5f);
         }
 
         private static Color ShiftColor(Color col, float hueShift)

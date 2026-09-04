@@ -254,46 +254,12 @@ namespace PuzzleParty.Board
 
         private IEnumerator AnimateVictoryText(TMP_Text victoryText)
         {
-            RectTransform textRect = victoryText.GetComponent<RectTransform>();
-            if (textRect == null) yield break;
-
-            Vector3 originalScale = textRect.localScale;
-            textRect.localScale = Vector3.zero;
-
-            yield return new WaitForSeconds(0.9f);
-
-            Canvas canvas = victoryText.GetComponentInParent<Canvas>();
-            if (canvas == null) yield break;
-
-            textRect.DOScale(originalScale * victoryTextPunchScale, victoryTextPunchDuration * 0.6f)
-                .SetEase(Ease.OutBack)
-                .SetLink(textRect.gameObject)
-                .OnComplete(() => {
-                    if (textRect != null) textRect.DOScale(originalScale, victoryTextPunchDuration * 0.4f).SetEase(Ease.InOutQuad).SetLink(textRect.gameObject);
-                });
-
-            if (victorySparkleEffectPrefab != null)
-            {
-                VictorySparkleEffect sparkles = Instantiate(victorySparkleEffectPrefab);
-                sparkles.Play(textRect, canvas.transform);
-            }
-
-            DG.Tweening.Sequence colorSeq = DOTween.Sequence();
-            Color goldColor = new Color(1f, 0.85f, 0.3f);
-            Color brightGold = new Color(1f, 0.95f, 0.6f);
-            colorSeq.Append(victoryText.DOColor(brightGold, 0.3f));
-            colorSeq.Append(victoryText.DOColor(goldColor, 0.3f));
-            colorSeq.Append(victoryText.DOColor(Color.white, 0.3f));
-            colorSeq.Append(victoryText.DOColor(goldColor, 0.3f));
-            colorSeq.SetLoops(3);
-            colorSeq.OnComplete(() => victoryText.color = goldColor);
-
-            yield return new WaitForSeconds(1.5f);
-
-            textRect.DOScale(originalScale * 1.05f, 0.8f)
-                .SetEase(Ease.InOutSine)
-                .SetLoops(-1, LoopType.Yoyo)
-                .SetLink(textRect.gameObject);
+            yield return VictoryTextEffect.Animate(
+                victoryText,
+                startDelay: 0.9f,
+                punchScale: victoryTextPunchScale,
+                punchDuration: victoryTextPunchDuration,
+                sparkleEffectPrefab: victorySparkleEffectPrefab);
         }
     }
 }

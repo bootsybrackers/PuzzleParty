@@ -50,6 +50,12 @@ namespace PuzzleParty.UI
             this.levelId = levelId;
             this.isCompleted = isCompleted;
 
+            // Fall back to finding the label ourselves if the serialized reference wasn't
+            // wired (e.g. a prefab variant that was never hooked up in the Inspector) -
+            // better to show the right text than a silently-unlabeled marker.
+            if (levelNameText == null)
+                levelNameText = GetComponentInChildren<TextMeshProUGUI>(true);
+
             if (levelNameText != null)
             {
                 levelNameText.enabled = true; // Ensure text component is enabled
@@ -95,6 +101,15 @@ namespace PuzzleParty.UI
         {
             transform.DOScale(Vector3.one, animateInDuration)
                 .SetEase(animateInEase);
+        }
+
+        /// <summary>
+        /// Snaps the marker straight to its visible state, skipping the entrance animation.
+        /// </summary>
+        public void ShowImmediate()
+        {
+            transform.DOKill();
+            transform.localScale = Vector3.one;
         }
 
         /// <summary>

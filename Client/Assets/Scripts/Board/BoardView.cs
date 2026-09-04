@@ -94,12 +94,12 @@ namespace PuzzleParty.Board
             }
         }
 
-        public void StartAnimation(System.Action onComplete)
+        public void StartAnimation(int finalMovesCount, System.Action onComplete)
         {
-            StartCoroutine(ShowCompletePuzzle(onComplete));
+            StartCoroutine(ShowCompletePuzzle(finalMovesCount, onComplete));
         }
 
-        private IEnumerator ShowCompletePuzzle(System.Action onComplete)
+        private IEnumerator ShowCompletePuzzle(int finalMovesCount, System.Action onComplete)
         {
             // Board stays at full scale from the start - no scaling animation
 
@@ -221,7 +221,9 @@ namespace PuzzleParty.Board
             // Keep banner visible for a moment
             yield return new WaitForSeconds(0.5f);
 
-            // Animate powerup unlocks (icon to button/text effects)
+            // Animate powerup unlocks (icon to button/text effects), in a fixed presentation
+            // order regardless of which combination is active: painting, then extra moves,
+            // then the glove.
             if (currentStreak >= 1 && uiElements.streakIcons != null && uiElements.streakIcons.Length > 0)
             {
                 // Painting unlock animation (streak >= 1)
@@ -231,21 +233,23 @@ namespace PuzzleParty.Board
                 }
             }
 
-            if (currentStreak >= 3 && uiElements.streakIcons != null && uiElements.streakIcons.Length > 2)
-            {
-                // Slot unlock animation (streak >= 3)
-                if (uiElements.slotButton != null)
-                {
-                    yield return StartCoroutine(AnimateIconToTarget(uiElements.streakIcons[2], uiElements.slotButton.transform));
-                }
-            }
-
             if (currentStreak >= 2 && uiElements.streakIcons != null && uiElements.streakIcons.Length > 1)
             {
-                // Moves bonus animation (streak >= 2)
+                // Moves bonus animation (streak >= 2): fly the icon in, then count the moves
+                // display up from its original value to the boosted total.
                 if (uiElements.movesText != null)
                 {
                     yield return StartCoroutine(AnimateIconToTarget(uiElements.streakIcons[1], uiElements.movesText.transform));
+                    yield return StartCoroutine(AnimateMovesCounter(finalMovesCount));
+                }
+            }
+
+            if (currentStreak >= 3 && uiElements.streakIcons != null && uiElements.streakIcons.Length > 2)
+            {
+                // Slot (glove) unlock animation (streak >= 3)
+                if (uiElements.slotButton != null)
+                {
+                    yield return StartCoroutine(AnimateIconToTarget(uiElements.streakIcons[2], uiElements.slotButton.transform));
                 }
             }
 
@@ -327,6 +331,37 @@ namespace PuzzleParty.Board
             {
                 yield return null;
             }
+        }
+
+        /// <summary>
+        /// Counts the moves display up from whatever it's currently showing to targetMoves,
+        /// timed to land right as the streak-bonus icon arrives at the moves counter.
+        /// </summary>
+        private IEnumerator AnimateMovesCounter(int targetMoves)
+        {
+            if (uiElements?.movesText == null) yield break;
+
+            if (!int.TryParse(uiElements.movesText.text, out int startMoves) || startMoves == targetMoves)
+            {
+                uiElements.movesText.text = $"{targetMoves}";
+                yield break;
+            }
+
+            float duration = Mathf.Clamp(Mathf.Abs(targetMoves - startMoves) * 0.03f, 0.3f, 1f);
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                int current = Mathf.RoundToInt(Mathf.Lerp(startMoves, targetMoves, t));
+                uiElements.movesText.text = $"{current}";
+                yield return null;
+            }
+
+            uiElements.movesText.text = $"{targetMoves}";
+            uiElements.movesText.transform.DOPunchScale(Vector3.one * 0.25f, 0.35f, 5, 0.8f)
+                .SetLink(uiElements.movesText.gameObject);
         }
 
         public void AnimateScramble(BoardTile[][] scrambledBoard, System.Action onComplete)
@@ -512,6 +547,42 @@ namespace PuzzleParty.Board
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Resolves a world position to a physical board grid cell (array indices into
+        /// BoardManager's board[][], i.e. row/column of the current layout - not the tile's
+        /// home Row/Column identity). Works for holes too, since it's computed from grid
+        /// geometry rather than from an existing tile GameObject like GetTileAtPosition is.
+        /// Returns false if the position falls outside the board entirely.
+        /// </summary>
+        public bool TryGetGridPosition(Vector3 worldPosition, out int row, out int col)
+        {
+            row = -1;
+            col = -1;
+
+            if (level == null || desiredTileWorldWidth <= 0f || desiredTileWorldHeight <= 0f)
+                return false;
+
+            Vector3 local = transform.InverseTransformPoint(worldPosition);
+            Vector3 scale = transform.lossyScale;
+            float localX = local.x * scale.x;
+            float localY = local.y * scale.y;
+
+            float boardWidth = level.Columns * desiredTileWorldWidth;
+            float boardHeight = level.Rows * desiredTileWorldHeight;
+            float startX = -boardWidth / 2f + desiredTileWorldWidth / 2f;
+            float startY = boardHeight / 2f - desiredTileWorldHeight / 2f;
+
+            int displayCol = Mathf.RoundToInt((localX - startX) / desiredTileWorldWidth) + 1;
+            int displayRow = Mathf.RoundToInt((startY - localY) / desiredTileWorldHeight) + 1;
+
+            if (displayCol < 1 || displayCol > level.Columns || displayRow < 1 || displayRow > level.Rows)
+                return false;
+
+            row = displayRow - 1;
+            col = displayCol - 1;
+            return true;
         }
 
         public void UpdateTilePositions(BoardTile[][] currentBoard, System.Action onComplete = null)
@@ -879,6 +950,42 @@ namespace PuzzleParty.Board
             obj2.transform.DOScale(obj2.transform.localScale * 0.85f, duration * 0.5f)
                 .SetEase(Ease.OutQuad)
                 .OnComplete(() => obj2.transform.DOScale(obj2.transform.localScale / 0.85f, duration * 0.5f).SetEase(Ease.OutBack));
+        }
+
+        /// <summary>
+        /// Power-up variant of a tile move: hops the tile into an empty hole with the same
+        /// arcing flourish as AnimateTileSwap, instead of the plain slide UpdateTilePositions
+        /// uses for ordinary moves.
+        /// </summary>
+        public void AnimateTileMoveToHole(BoardTile tile, int targetRow, int targetCol, System.Action onComplete)
+        {
+            string key = TileFactory.GetTileKey(tile.Row, tile.Column);
+            if (!tileObjects.TryGetValue(key, out GameObject obj))
+            {
+                onComplete?.Invoke();
+                return;
+            }
+
+            Vector3 startPos = obj.transform.localPosition;
+            Vector3 targetPos = TileFactory.GetTileLocalPosition(
+                targetCol + 1, targetRow + 1, level.Columns, level.Rows,
+                desiredTileWorldWidth, desiredTileWorldHeight, transform.lossyScale);
+            targetPos.z = startPos.z;
+
+            float arcHeight = Mathf.Max(desiredTileWorldWidth, desiredTileWorldHeight) * 1.4f;
+            float duration = 0.4f;
+
+            DOVirtual.Float(0f, 1f, duration, t =>
+            {
+                if (obj == null) return;
+                float x = Mathf.Lerp(startPos.x, targetPos.x, t);
+                float y = Mathf.Lerp(startPos.y, targetPos.y, t) + Mathf.Sin(t * Mathf.PI) * arcHeight;
+                obj.transform.localPosition = new Vector3(x, y, startPos.z);
+            }).SetEase(Ease.InOutSine).OnComplete(() => onComplete?.Invoke());
+
+            obj.transform.DOScale(obj.transform.localScale * 0.85f, duration * 0.5f)
+                .SetEase(Ease.OutQuad)
+                .OnComplete(() => obj.transform.DOScale(obj.transform.localScale / 0.85f, duration * 0.5f).SetEase(Ease.OutBack));
         }
 
         public void AnimateIceBreak(List<(int row, int col)> icedPositions, System.Action onComplete)

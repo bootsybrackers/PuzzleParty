@@ -33,6 +33,16 @@ namespace PuzzleParty.Board.Effects
         private Sprite confettiSprite;
         private Transform canvasParent;
 
+        // Size of the canvas we're spawning into, in its own local (anchoredPosition) units.
+        // Used to convert the "pixel space, bottom-left origin" coordinates used throughout
+        // this script into positions relative to the canvas's own rect. Reading these from
+        // Screen.width/height and writing straight to Transform.position only lines up for a
+        // Screen Space - Overlay canvas; a Screen Space - Camera canvas (e.g. the main menu)
+        // sits on a plane in front of its camera, so raw pixel values as a world position
+        // land nowhere near the visible area.
+        private float canvasWidth;
+        private float canvasHeight;
+
         public void Play(Transform canvasParent)
         {
             this.canvasParent = canvasParent;
@@ -43,9 +53,23 @@ namespace PuzzleParty.Board.Effects
                 confettiSprite = CreateFallbackConfettiSprite();
             }
 
+            RectTransform canvasRect = canvasParent as RectTransform ?? canvasParent.GetComponent<RectTransform>();
+            canvasWidth = canvasRect != null ? canvasRect.rect.width : Screen.width;
+            canvasHeight = canvasRect != null ? canvasRect.rect.height : Screen.height;
+
             InitPool();
             StartCoroutine(SpawnConfettiBurst());
             confettiCoroutine = StartCoroutine(SpawnConfettiContinuously());
+        }
+
+        /// <summary>
+        /// Converts a "pixel space, bottom-left origin" position (the coordinate system used
+        /// throughout this script) into an anchoredPosition relative to the canvas's own rect,
+        /// so placement is correct regardless of the canvas's render mode.
+        /// </summary>
+        private Vector2 ToCanvasLocal(float x, float y)
+        {
+            return new Vector2(x - canvasWidth * 0.5f, y - canvasHeight * 0.5f);
         }
 
         private void InitPool()
@@ -125,12 +149,9 @@ namespace PuzzleParty.Board.Effects
                 yield break;
             }
 
-            float screenWidth = Screen.width;
-            float screenHeight = Screen.height;
-
             for (int i = 0; i < confettiBurstCount; i++)
             {
-                SpawnBurstConfetti(screenWidth, screenHeight);
+                SpawnBurstConfetti(canvasWidth, canvasHeight);
             }
 
             yield return null;
@@ -152,7 +173,7 @@ namespace PuzzleParty.Board.Effects
             float spawnX = screenWidth * 0.5f + Random.Range(-screenWidth * 0.15f, screenWidth * 0.15f);
             float spawnY = screenHeight * 0.65f + Random.Range(-30f, 60f);
 
-            rect.position = new Vector3(spawnX, spawnY, 0f);
+            rect.anchoredPosition = ToCanvasLocal(spawnX, spawnY);
 
             float startRotation = Random.Range(0f, 360f);
             rect.rotation = Quaternion.Euler(0f, 0f, startRotation);
@@ -177,7 +198,7 @@ namespace PuzzleParty.Board.Effects
                     float yOffset = arcHeight * (4f * t * (1f - t));
                     float yBase = Mathf.Lerp(spawnY, targetY, t * t);
                     float flutter = Mathf.Sin(t * Mathf.PI * 5f) * 35f;
-                    rect.position = new Vector3(xPos + flutter, yBase + yOffset, 0f);
+                    rect.anchoredPosition = ToCanvasLocal(xPos + flutter, yBase + yOffset);
                 })
                 .OnComplete(() => ReturnToPool(confettiObj));
 
@@ -194,9 +215,6 @@ namespace PuzzleParty.Board.Effects
                 yield break;
             }
 
-            float screenWidth = Screen.width;
-            float screenHeight = Screen.height;
-
             while (true)
             {
                 if (activeConfetti.Count < maxActiveConfetti)
@@ -204,7 +222,7 @@ namespace PuzzleParty.Board.Effects
                     for (int i = 0; i < confettiPerSpawn; i++)
                     {
                         if (activeConfetti.Count >= maxActiveConfetti) break;
-                        SpawnSingleConfetti(screenWidth, screenHeight);
+                        SpawnSingleConfetti(canvasWidth, canvasHeight);
                     }
                 }
                 yield return new WaitForSeconds(confettiSpawnRate);
@@ -229,7 +247,7 @@ namespace PuzzleParty.Board.Effects
                 : Random.Range(screenWidth * 0.65f, screenWidth);
             float spawnY = screenHeight + 50f;
 
-            rect.position = new Vector3(spawnX, spawnY, 0f);
+            rect.anchoredPosition = ToCanvasLocal(spawnX, spawnY);
 
             float startRotation = Random.Range(0f, 360f);
             rect.rotation = Quaternion.Euler(0f, 0f, startRotation);
@@ -251,7 +269,7 @@ namespace PuzzleParty.Board.Effects
                     float wave = Mathf.Sin(t * Mathf.PI * 3f) * 30f;
                     float xPos = Mathf.Lerp(spawnX, targetX, t) + wave;
                     float yPos = Mathf.Lerp(spawnY, targetY, t * t);
-                    rect.position = new Vector3(xPos, yPos, 0f);
+                    rect.anchoredPosition = ToCanvasLocal(xPos, yPos);
                 })
                 .OnComplete(() => ReturnToPool(confettiObj));
 

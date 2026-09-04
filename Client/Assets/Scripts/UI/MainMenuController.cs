@@ -72,6 +72,8 @@ namespace PuzzleParty.UI
         // Start play button pulse animation
         StartPlayButtonPulseAnimation();
 
+        bool outOfContent = mapService.IsOutOfContent(progressionService.GetProgression().lastBeatenLevel);
+
         // Display player stats and map progress
         DisplayPlayerStats();
 
@@ -105,25 +107,49 @@ namespace PuzzleParty.UI
             DisplayPlayerStats();
             UpdatePlayButtonText();
             SetupAtlas();
+
+            // See the comment in ShowMapCompletionAfterDelay: SetupAtlas() rebuilds every
+            // marker from scratch, and freshly created ones start invisible until animated
+            // in. The atlas is already open by the time the debug overlay can be closed, so
+            // snap the rebuilt markers straight to visible.
+            if (mainMenuView != null)
+                mainMenuView.SetOpenImmediate();
         };
+
+        // Wire up the "out of content" overlay (shown when there's no next level/map left).
+        EOCOverlayController eocOverlay = gameObject.AddComponent<EOCOverlayController>();
 
         // Fade in from black, then animate atlas
         transitionService.FadeIn(() =>
         {
-            if (mainMenuView != null)
+            if (mainMenuView == null) return;
+
+            if (outOfContent)
+            {
+                // Beating the last level of the last map - or simply returning later with
+                // still no new content available - should go straight to the out-of-content
+                // overlay: skip the atlas-open animation and the map-completion overlay
+                // entirely (the atlas itself is already left blank, see SetupAtlas above).
+                mainMenuView.SetOpenImmediate();
+                eocOverlay.Show();
+            }
+            else if (justCompletedMap)
+            {
+                // Finishing the last level of a map should feel like it leads directly
+                // into the map completion screen, not through the menu underneath it.
+                // The atlas has already switched to the new map (see SetupAtlas above),
+                // so snap it straight to its open state and show the overlay immediately
+                // instead of playing the book-opening animation first.
+                mainMenuView.SetOpenImmediate();
+                StartCoroutine(ShowMapCompletionAfterDelay(completedMapId, 0.1f));
+            }
+            else
             {
                 mainMenuView.AnimateOpen(() =>
                 {
-                    // When a map is completed the atlas has already switched to the new map,
-                    // so the per-level marker animation is skipped in favour of the overlay.
-                    if (justCompletedLevel && !justCompletedMap)
+                    if (justCompletedLevel)
                     {
                         AnimateNewLevelCompletion();
-                    }
-
-                    if (justCompletedMap)
-                    {
-                        StartCoroutine(ShowMapCompletionAfterDelay(completedMapId, 1.0f));
                     }
                 });
             }
@@ -138,17 +164,19 @@ namespace PuzzleParty.UI
 
     private void UpdatePlayButtonText()
     {
+        Level nextLevel = levelService.GetNextLevel();
+        bool hasNextLevel = nextLevel != null;
+
         if (playButtonText != null)
         {
-            Level nextLevel = levelService.GetNextLevel();
-            if (nextLevel != null)
-            {
-                playButtonText.text = $"Level {nextLevel.Id}";
-            }
-            else
-            {
-                playButtonText.text = "Play";
-            }
+            playButtonText.text = hasNextLevel ? $"Level {nextLevel.Id}" : "Play";
+        }
+
+        // No level left to load - avoid sending the player into a Play button that has
+        // nothing to play (GetNextLevel() returning null would otherwise crash BoardController).
+        if (playButton != null)
+        {
+            playButton.interactable = hasNextLevel;
         }
     }
 
@@ -161,6 +189,15 @@ namespace PuzzleParty.UI
         if (coinsText != null)
         {
             coinsText.text = $"{progression.coins}";
+        }
+
+        if (mapService.IsOutOfContent(progression.lastBeatenLevel))
+        {
+            // No map left to show - leave the title/progress blank instead of re-showing the
+            // already-finished last map (see EOCOverlayController / the out-of-content overlay).
+            if (mainMenuView != null) mainMenuView.SetMapName("");
+            if (mapProgressText != null) mapProgressText.text = "";
+            return;
         }
 
         // Get and display current map info
@@ -193,6 +230,17 @@ namespace PuzzleParty.UI
         if (mainMenuView == null) return;
 
         Progression progression = progressionService.GetProgression();
+
+        // Clear existing markers up front - out of content or not, we're about to redraw.
+        mainMenuView.ClearLevelMarkers();
+
+        if (mapService.IsOutOfContent(progression.lastBeatenLevel))
+        {
+            // No content left - leave the book's pages blank (see EOCOverlayController).
+            Debug.Log("Out of content - leaving the atlas blank");
+            return;
+        }
+
         Map currentMap = mapService.GetCurrentMap(progression.lastBeatenLevel);
 
         if (currentMap == null)
@@ -200,9 +248,6 @@ namespace PuzzleParty.UI
             Debug.LogWarning("No current map found for atlas setup");
             return;
         }
-
-        // Clear existing markers
-        mainMenuView.ClearLevelMarkers();
 
         // TODO: Load map sprite from resources or StreamingAssets
         // For now, you'll need to set this manually in the Unity Editor
@@ -294,6 +339,15 @@ namespace PuzzleParty.UI
             DisplayPlayerStats();
             UpdatePlayButtonText();
             SetupAtlas();
+
+            // SetupAtlas() destroys and recreates every level marker. Freshly created
+            // markers start scaled to zero and only reveal themselves via the staggered
+            // entrance animation fired from AnimateOpen() - which already ran before the
+            // overlay appeared, so it never touches these new instances. The atlas is
+            // already open at this point, so just snap the new markers straight to visible
+            // instead of leaving them invisible.
+            if (mainMenuView != null)
+                mainMenuView.SetOpenImmediate();
         });
     }
 

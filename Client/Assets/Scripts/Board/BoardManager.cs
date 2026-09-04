@@ -528,6 +528,46 @@ namespace PuzzleParty.Board
             board[row2][col2] = temp;
         }
 
+        /// <summary>
+        /// Moves a tile into an empty hole on the board. Used by the swap power-up when the
+        /// second tap lands on a hole rather than another tile — costs no moves.
+        /// </summary>
+        public bool PowerUpMoveTileToHole(BoardTile tile, int targetRow, int targetCol)
+        {
+            if (targetRow < 0 || targetRow >= board.Length || targetCol < 0 || targetCol >= board[targetRow].Length)
+            {
+                Debug.LogWarning("PowerUpMoveTileToHole: target position out of bounds");
+                return false;
+            }
+
+            if (board[targetRow][targetCol] != null)
+            {
+                Debug.LogWarning("PowerUpMoveTileToHole: target position is not a hole");
+                return false;
+            }
+
+            int row1 = -1, col1 = -1;
+            for (int i = 0; i < board.Length; i++)
+            {
+                for (int j = 0; j < board[i].Length; j++)
+                {
+                    if (board[i][j] != null && board[i][j].Row == tile.Row && board[i][j].Column == tile.Column)
+                    { row1 = i; col1 = j; break; }
+                }
+                if (row1 != -1) break;
+            }
+
+            if (row1 == -1)
+            {
+                Debug.LogWarning("PowerUpMoveTileToHole: could not find source tile");
+                return false;
+            }
+
+            board[targetRow][targetCol] = board[row1][col1];
+            board[row1][col1] = null;
+            return true;
+        }
+
         public bool CanMoveTile(BoardTile tile, MoveDirection direction)
         {
             if (tile.IsLocked)
@@ -845,7 +885,7 @@ namespace PuzzleParty.Board
                     if (tile != null && tile.IsIced)
                     {
                         tile.IsIced = false;
-                        icedPositions.Add((i, j));
+                        icedPositions.Add((tile.Row, tile.Column));
                     }
                 }
             }

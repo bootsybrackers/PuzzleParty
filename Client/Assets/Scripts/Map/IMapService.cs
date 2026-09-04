@@ -7,5 +7,6 @@ namespace PuzzleParty.Maps
         Map GetMapById(int mapId);
         Map[] GetAllMaps();
         bool IsMapUnlocked(int mapId, int lastBeatenLevel);
+        bool IsOutOfContent(int lastBeatenLevel);
     }
 }

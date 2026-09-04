@@ -17,6 +17,8 @@ namespace PuzzleParty.UI
     public class MapCompletionOverlayController : MonoBehaviour
     {
         private const string FIREWORKS_PREFAB_PATH = "Prefabs/Effects/FireworksEffect";
+        private const string CONFETTI_PREFAB_PATH = "Prefabs/Effects/ConfettiEffect";
+        private const string MAP_COMPLETE_TEXT = "You've completed the {0} map. Here are some coins to prepare you for the next adventure.";
         private const int MAP_COMPLETION_COINS = 1000;
 
         [Header("Overlay Root")]
@@ -33,6 +35,7 @@ namespace PuzzleParty.UI
 
         private IProgressionService progressionService;
         private FireworksEffect activeFireworks;
+        private ConfettiEffect activeConfetti;
         private System.Action pendingOnNextMap;
 
         void Start()
@@ -62,7 +65,7 @@ namespace PuzzleParty.UI
 
             // Populate dynamic fields
             if (mapNameText != null)
-                mapNameText.text = completedMapName;
+                mapNameText.text = string.Format(MAP_COMPLETE_TEXT, completedMapName);
 
             if (coinCounterText != null)
                 coinCounterText.text = "+0 coins";
@@ -82,8 +85,9 @@ namespace PuzzleParty.UI
             if (overlayRoot != null)
                 overlayRoot.SetActive(true);
 
-            // Launch fireworks
+            // Launch fireworks and confetti
             StartFireworks();
+            StartConfetti();
 
             // Entrance animation
             if (overlayRoot != null)
@@ -117,6 +121,7 @@ namespace PuzzleParty.UI
         public void Hide(System.Action onHidden = null)
         {
             StopFireworks();
+            StopConfetti();
 
             if (overlayRoot != null)
             {
@@ -146,9 +151,7 @@ namespace PuzzleParty.UI
 
         private IEnumerator AnimateTitle(TextMeshProUGUI text)
         {
-            yield return new WaitForSeconds(0.65f);
-            if (text == null) yield break;
-            text.transform.DOPunchScale(Vector3.one * 0.28f, 0.55f, 5, 0.8f).SetLink(text.gameObject);
+            yield return VictoryTextEffect.Animate(text, startDelay: 0.65f);
         }
 
         private IEnumerator AnimateCoinCounter(TextMeshProUGUI text, int target)
@@ -205,12 +208,50 @@ namespace PuzzleParty.UI
             }
         }
 
+        // ─── Confetti ─────────────────────────────────────────────────────────
+
+        private void StartConfetti()
+        {
+            StopConfetti();
+
+            var prefab = Resources.Load<ConfettiEffect>(CONFETTI_PREFAB_PATH);
+            if (prefab == null)
+            {
+                Debug.LogWarning("Cannot spawn confetti - prefab not found at " + CONFETTI_PREFAB_PATH);
+                return;
+            }
+
+            Canvas canvas = overlayRoot != null
+                ? overlayRoot.GetComponentInParent<Canvas>()
+                : GetComponentInParent<Canvas>();
+
+            if (canvas == null)
+            {
+                Debug.LogWarning("Cannot spawn confetti - missing Canvas");
+                return;
+            }
+
+            activeConfetti = Instantiate(prefab);
+            activeConfetti.Play(canvas.transform);
+        }
+
+        private void StopConfetti()
+        {
+            if (activeConfetti != null)
+            {
+                activeConfetti.Stop();
+                Destroy(activeConfetti.gameObject);
+                activeConfetti = null;
+            }
+        }
+
         void OnDestroy()
         {
             if (nextMapButton != null)
                 nextMapButton.onClick.RemoveListener(OnNextMapButtonClicked);
 
             StopFireworks();
+            StopConfetti();
         }
     }
 }

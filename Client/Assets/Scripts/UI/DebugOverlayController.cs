@@ -24,6 +24,7 @@ namespace PuzzleParty.UI
 
         private GameObject overlayRoot;
         private TextMeshProUGUI levelValueText;
+        private TextMeshProUGUI streakValueText;
         private TextMeshProUGUI coinsValueText;
 
         private IProgressionService progressionService;
@@ -127,10 +128,10 @@ namespace PuzzleParty.UI
 
             // ── Level section ──
             MakeLabel(card.transform, "Last Beaten Level", 30, new Color(0.7f, 0.7f, 0.7f),
-                new Vector2(0.05f, 0.68f), new Vector2(0.95f, 0.80f));
+                new Vector2(0.05f, 0.72f), new Vector2(0.95f, 0.82f));
 
             GameObject levelRow = MakeRow(card.transform,
-                new Vector2(0.05f, 0.52f), new Vector2(0.95f, 0.68f));
+                new Vector2(0.05f, 0.58f), new Vector2(0.95f, 0.72f));
 
             MakeButton(levelRow.transform, "−", new Vector2(0f, 0f), new Vector2(0.25f, 1f),
                 new Color(0.8f, 0.2f, 0.2f), () => ChangeLevel(-1));
@@ -139,14 +140,28 @@ namespace PuzzleParty.UI
             MakeButton(levelRow.transform, "+", new Vector2(0.75f, 0f), new Vector2(1f, 1f),
                 new Color(0.2f, 0.65f, 0.2f), () => ChangeLevel(1));
 
+            // ── Streak section ──
+            MakeLabel(card.transform, "Streak", 30, new Color(0.7f, 0.7f, 0.7f),
+                new Vector2(0.05f, 0.46f), new Vector2(0.95f, 0.56f));
+
+            GameObject streakRow = MakeRow(card.transform,
+                new Vector2(0.05f, 0.32f), new Vector2(0.95f, 0.46f));
+
+            MakeButton(streakRow.transform, "−", new Vector2(0f, 0f), new Vector2(0.25f, 1f),
+                new Color(0.8f, 0.2f, 0.2f), () => ChangeStreak(-1));
+            streakValueText = MakeLabel(streakRow.transform, $"{prog.streak}", 52, Color.white,
+                new Vector2(0.25f, 0f), new Vector2(0.75f, 1f));
+            MakeButton(streakRow.transform, "+", new Vector2(0.75f, 0f), new Vector2(1f, 1f),
+                new Color(0.2f, 0.65f, 0.2f), () => ChangeStreak(1));
+
             // ── Coins section ──
             MakeLabel(card.transform, "Coins", 30, new Color(0.7f, 0.7f, 0.7f),
-                new Vector2(0.05f, 0.36f), new Vector2(0.95f, 0.48f));
+                new Vector2(0.05f, 0.21f), new Vector2(0.95f, 0.30f));
 
             coinsValueText = MakeLabel(card.transform, $"{prog.coins}", 52, Color.white,
-                new Vector2(0.05f, 0.24f), new Vector2(0.95f, 0.36f));
+                new Vector2(0.05f, 0.11f), new Vector2(0.95f, 0.21f));
 
-            MakeButton(card.transform, "+100 Coins", new Vector2(0.1f, 0.10f), new Vector2(0.9f, 0.23f),
+            MakeButton(card.transform, "+100 Coins", new Vector2(0.1f, 0.02f), new Vector2(0.9f, 0.11f),
                 new Color(0.15f, 0.45f, 0.85f), AddCoins);
 
             // ── Close ──
@@ -177,6 +192,16 @@ namespace PuzzleParty.UI
             progressionService.SaveProgression(prog);
             if (levelValueText != null)
                 levelValueText.text = $"{prog.lastBeatenLevel}";
+        }
+
+        private void ChangeStreak(int delta)
+        {
+            Progression prog = progressionService.GetProgression();
+            // Matches the clamp ProgressionService.IncrementStreak/ResetStreak enforce (0-3).
+            prog.streak = Mathf.Clamp(prog.streak + delta, 0, 3);
+            progressionService.SaveProgression(prog);
+            if (streakValueText != null)
+                streakValueText.text = $"{prog.streak}";
         }
 
         private void AddCoins()

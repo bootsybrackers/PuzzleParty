@@ -41,10 +41,11 @@ namespace PuzzleParty.Service
         private async Task InitializeAsync()
         {
             _userId = PlayerPrefs.GetString("UserId", "");
+            bool isNewInstall = string.IsNullOrEmpty(_userId);
             Debug.Log($"[BackendSync] Initializing — deviceId={_deviceId}, savedUserId={(string.IsNullOrEmpty(_userId) ? "<none>" : _userId)}");
             try
             {
-                if (string.IsNullOrEmpty(_userId))
+                if (isNewInstall)
                     await InstallAsync();
                 else
                     await LoginAsync();
@@ -59,6 +60,13 @@ namespace PuzzleParty.Service
             Debug.Log($"[BackendSync] Init complete — userId={(string.IsNullOrEmpty(_userId) ? "<not set>" : _userId)}, starting sync loop");
             OnReady?.Invoke();
             _ = RunSyncLoopAsync();
+
+            // app_install is a one-off, high-value signal (D1 retention is computed from it) —
+            // don't leave it to the next periodic sync/focus-loss/quit like routine events.
+            // SyncAsync() must be called from here rather than from inside InstallAsync(),
+            // since it no-ops until _isInitialized is true (set just above).
+            if (isNewInstall && !string.IsNullOrEmpty(_userId))
+                _ = SyncAsync();
         }
 
         private async Task InstallAsync()
@@ -82,6 +90,7 @@ namespace PuzzleParty.Service
             PlayerPrefs.Save();
 
             ApplyServerProgression(user);
+            TrackEvent("app_install");
             Debug.Log($"[BackendSync] Install OK — userId={_userId}, progression=({user.lastBeatenLevel}/{user.coins}/{user.streak})");
         }
 

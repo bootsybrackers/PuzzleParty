@@ -11,6 +11,9 @@ namespace PuzzleParty.Levels
 
     public Level GetLevel(int levelId)
     {
+        if (!LevelExists(levelId))
+            return null;
+
         LevelConf lc = LoadLevelConf(levelId);
         Sprite sprite = LoadLevelImage(levelId);
 
@@ -56,9 +59,20 @@ namespace PuzzleParty.Levels
         
     }
 
+    private bool LevelExists(int levelId)
+    {
+        // Both files are required for a level to actually be playable. In practice, level
+        // folders can sit around with just a config and no exported image yet (e.g. stubs
+        // left over from the level editor) - those aren't real content, so treat them the
+        // same as a level that doesn't exist at all rather than failing loudly.
+        string confPath = Path.Combine(Application.streamingAssetsPath, "levels/level" + levelId + "/level" + levelId + ".json");
+        string imagePath = Path.Combine(Application.streamingAssetsPath, "levels/level" + levelId + "/level" + levelId + ".png");
+        return File.Exists(confPath) && File.Exists(imagePath);
+    }
+
     private LevelConf LoadLevelConf(int levelId)
     {
-        
+
         string confPath = Path.Combine(Application.streamingAssetsPath, "levels/level" + levelId + "/level" + levelId +".json");
         string json = File.ReadAllText(confPath);
         return JsonUtility.FromJson<LevelConf>(json);
