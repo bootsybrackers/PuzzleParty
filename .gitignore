@@ -11,6 +11,8 @@ Builds/
 Logs/
 UserSettings/
 MemoryCaptures/
+Client/Assets/_Recovery/
+Client/Assets/_Recovery.meta
 *.pidb
 *.suo
 *.user
