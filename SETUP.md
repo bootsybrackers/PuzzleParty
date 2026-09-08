@@ -109,6 +109,8 @@ After deploying, `GET /api/health` (`Server/Controllers/HealthController.cs`) re
 - `Server/Dockerfile` — multi-stage: .NET 8 SDK image builds + publishes, then copies into the smaller `aspnet:8.0` runtime image. Listens on `8081` internally (`ASPNETCORE_URLS`), regardless of which host port you map it to.
 - `Web/Dockerfile` — just `nginx:alpine` serving the `Web/` directory's static files as-is; no build step.
 
+`Server/.dockerignore` excludes `appsettings.Development.json` from the build context — without it, your local dev Mongo credentials get baked straight into the pushed image. Keep this in mind if you ever add other local-only config files under `Server/`.
+
 ### Client (Unity)
 
 There's no scripted build/release pipeline for the client in this repo — it's a manual Unity build:
@@ -118,3 +120,28 @@ There's no scripted build/release pipeline for the client in this repo — it's 
 3. Open that Xcode project, bump the build number if needed (currently `1` in Unity's Player Settings), archive, and upload via Xcode/Transporter as usual for App Store/TestFlight.
 
 Before shipping a build that talks to the real server, double-check `BackendSyncService.BaseUrl` (`Client/Assets/Scripts/Service/BackendSyncService.cs`) — it's still hardcoded to `http://localhost:5136` with a `// TODO: change to your production URL before release` comment, and would need to point at `https://pp.slamdunkinteractive.com` (or stage) instead.
+
+## First Google Play release checklist
+
+One-time steps for getting the first Android build into Play Console. Server steps reuse the tooling above; client steps were checked against the actual current `ProjectSettings.asset` (not generic advice) — the "missing" items below are genuinely unset in the project right now.
+
+**Server:**
+- [ ] `./build.sh <version> server` then `MONGODB_CONNECTION_STRING=<prod-string> ./deploy.sh prod <version> server`
+- [ ] Confirm with `curl https://pp.slamdunkinteractive.com/api/health` (assumes a reverse proxy already routes that domain to the VPS's port `8081` — that routing lives outside this repo)
+- [ ] Update `BackendSyncService.BaseUrl` to `https://pp.slamdunkinteractive.com` — **do this before building the client**, or the shipped app talks to localhost and every player's sync/analytics silently fails
+
+**Client — Android Player Settings (all currently unset/wrong for a Play Store build):**
+- [ ] Install the Android Build Support module (+ OpenJDK, Android SDK & NDK Tools) for `6000.4.0f1` via Unity Hub, if not already
+- [ ] **Package Name** — `applicationIdentifier` has no `Android` entry at all yet. This is permanent once you first publish, so choose deliberately (e.g. `com.slamdunkinteractive.puzzleparty`) rather than leaving Unity's default. **Player Settings → Other Settings → Identification**
+- [ ] **Keystore** — none exists (`AndroidKeystoreName`/`AndroidKeyaliasName` are empty). Create one via **Player Settings → Publishing Settings → Keystore Manager**, then back up the file + both passwords somewhere permanent immediately
+- [ ] **Target Architectures** — currently ARMv7-only (`AndroidTargetArchitectures: 1`); Play Store has required ARM64 since 2019/2021. Add/switch to ARM64. **Player Settings → Other Settings → Configuration**
+- [ ] **Scripting Backend → IL2CPP** — required for ARM64, not confirmed as explicitly set
+- [ ] **Build Settings → Android → tick "Build App Bundle (Google Play)"** — Play Console requires `.aab`, not a raw `.apk`
+- [ ] If Play Console rejects the upload over target API level, bump the installed Android SDK Platform (via Android SDK Manager) and rebuild — Google raises the minimum every year, `AndroidTargetSdkVersion` is left on Automatic
+
+**Google Play Console (outside this repo):**
+- [ ] One-time $25 developer account, create the app
+- [ ] Privacy Policy URL (required — the app syncs progression/events to your server; could be hosted on the `Web/` site)
+- [ ] Data Safety form (declare device ID + gameplay/analytics event collection)
+- [ ] Content rating questionnaire, store listing (title, descriptions, icon, feature graphic, screenshots)
+- [ ] Upload the first `.aab` to **Internal testing** first, confirm it installs and talks to the live prod server end-to-end, *then* promote to Production — first-time Production submissions go through Google's review queue
