@@ -18,6 +18,9 @@ namespace PuzzleParty.UI
     [SerializeField]
     private float minimumLoadingTime = 2f; // Minimum time to show loading screen
 
+    [SerializeField]
+    private float backendReadyTimeoutSeconds = 6f; // Max time to wait on the backend before continuing anyway
+
     private ISceneLoader sceneLoader;
     private IProgressionService progressionService;
     private ITransitionService transitionService;
@@ -71,8 +74,20 @@ namespace PuzzleParty.UI
             yield return new WaitForSeconds(minimumLoadingTime - elapsedTime);
         }
 
-        // Wait for backend login/install to finish so server progression is applied before MainMenu reads it
-        yield return new WaitUntil(() => backendSync.IsReady);
+        // Wait for backend login/install to finish so server progression is applied before MainMenu
+        // reads it - but only up to a point. With no internet connection, or a slow/unreachable
+        // server, this would otherwise block here forever with no feedback that anything's wrong.
+        // Continuing without it just means the player sees local/stale progression for this
+        // session instead of a frozen loading screen; BackendSyncService keeps trying in the
+        // background regardless and IsReady/progression catch up once it does complete.
+        float backendWaitStart = Time.time;
+        yield return new WaitUntil(() =>
+            backendSync.IsReady || Time.time - backendWaitStart > backendReadyTimeoutSeconds);
+
+        if (!backendSync.IsReady)
+        {
+            Debug.LogWarning("[LoadingScene] Backend not ready after timeout - continuing with local progression.");
+        }
 
         // Loading complete, go to main menu
         sceneLoader.LoadMainMenu();
