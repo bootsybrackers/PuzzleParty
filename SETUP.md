@@ -54,9 +54,23 @@ cd Server
 dotnet run
 ```
 
-Runs at `http://localhost:5136` by default (matches the client's hardcoded `BaseUrl` in `Client/Assets/Scripts/Service/BackendSyncService.cs` — that's a `// TODO: change to your production URL before release` for whenever this ships). Swagger UI is available at `/swagger` in development.
+Runs at `http://localhost:5136` by default — see **Environments** below for how the client finds this automatically. Swagger UI is available at `/swagger` in development.
 
-MongoDB is already configured for local development in `Server/appsettings.Development.json` — it points at an Atlas-hosted cluster, so there's no local database to install or run. If you need your own database instance, add a `MongoDB` section (`ConnectionString`, `DatabaseName`, `UsersCollection`, `EventsCollection`) to `appsettings.Development.json`, or override via environment variables.
+MongoDB is already configured for local development in `Server/appsettings.Development.json` — it points at the Stage Atlas cluster, so there's no local database to install or run. If you need your own database instance, add a `MongoDB` section (`ConnectionString`, `DatabaseName`, `UsersCollection`, `EventsCollection`) to `appsettings.Development.json`, or override via environment variables.
+
+## Environments
+
+Three environments, and the client picks the right one automatically — no manual URL editing before a build:
+
+| Environment | Server | Database | How the client selects it |
+|---|---|---|---|
+| **Dev** | Local (`dotnet run`) | `PuzzleParty-Stage` (via `appsettings.Development.json`) | Automatic — always active when running in the Unity Editor |
+| **Stage** | VPS, `puzzleparty-server-stage` container | `PuzzleParty-Stage` | Device build with the **`PP_STAGE`** Scripting Define Symbol set (Player Settings → Other Settings → Scripting Define Symbols) |
+| **Prod** | VPS, `puzzleparty-server-prod` container | `PuzzleParty` | Device build with **no** environment define symbol set — this is the default, deliberately, so forgetting to flip a switch never ships a build pointed at Stage |
+
+This all lives in `Client/Assets/Scripts/Service/EnvironmentConfig.cs` (`EnvironmentConfig.Current` / `.ServerBaseUrl`), which `BackendSyncService` reads instead of a hardcoded URL. `BackendSyncService` also logs the active environment and URL on startup (`[BackendSync] Environment=..., BaseUrl=...`) — check that first if a build ever seems to be talking to the wrong place.
+
+Dev and Stage intentionally share the same database — Stage exists to test the server as actually deployed (Docker, VPS, real network), not to isolate data from Dev.
 
 ```bash
 # From the Server directory
@@ -119,23 +133,23 @@ There's no scripted build/release pipeline for the client in this repo — it's 
 2. Unity generates an Xcode project into `Client/ios/` (gitignored — never committed, regenerated fresh each build).
 3. Open that Xcode project, bump the build number if needed (currently `1` in Unity's Player Settings), archive, and upload via Xcode/Transporter as usual for App Store/TestFlight.
 
-Before shipping a build that talks to the real server, double-check `BackendSyncService.BaseUrl` (`Client/Assets/Scripts/Service/BackendSyncService.cs`) — it's still hardcoded to `http://localhost:5136` with a `// TODO: change to your production URL before release` comment, and would need to point at `https://pp.slamdunkinteractive.com` (or stage) instead.
+Which server the build talks to is automatic now (see **Environments** above) — a normal build with no extra Scripting Define Symbol is Prod; add `PP_STAGE` first if you specifically want a Stage-pointed test build (e.g. for TestFlight/internal testing before a real release).
 
 ## First Google Play release checklist
 
 One-time steps for getting the first Android build into Play Console. Server steps reuse the tooling above; client steps were checked against the actual current `ProjectSettings.asset` (not generic advice) — the "missing" items below are genuinely unset in the project right now.
 
 **Server:**
-- [ ] `./build.sh <version> server` then `MONGODB_CONNECTION_STRING=<prod-string> ./deploy.sh prod <version> server`
-- [ ] Confirm with `curl https://pp.slamdunkinteractive.com/api/health` (assumes a reverse proxy already routes that domain to the VPS's port `8081` — that routing lives outside this repo)
-- [ ] Update `BackendSyncService.BaseUrl` to `https://pp.slamdunkinteractive.com` — **do this before building the client**, or the shipped app talks to localhost and every player's sync/analytics silently fails
+- [x] `./build.sh <version> server` then `MONGODB_CONNECTION_STRING=<prod-string> ./deploy.sh prod <version> server` — done for `v0.1.3`; re-run for each subsequent release
+- [x] Confirm with `curl https://pp.slamdunkinteractive.com/api/health` (assumes a reverse proxy already routes that domain to the VPS's port `8081` — that routing lives outside this repo)
+- [x] Client points at the right server automatically per environment — see **Environments** above; nothing to hand-edit before a build anymore
 
-**Client — Android Player Settings (all currently unset/wrong for a Play Store build):**
+**Client — Android Player Settings:**
 - [ ] Install the Android Build Support module (+ OpenJDK, Android SDK & NDK Tools) for `6000.4.0f1` via Unity Hub, if not already
-- [ ] **Package Name** — `applicationIdentifier` has no `Android` entry at all yet. This is permanent once you first publish, so choose deliberately (e.g. `com.slamdunkinteractive.puzzleparty`) rather than leaving Unity's default. **Player Settings → Other Settings → Identification**
-- [ ] **Keystore** — none exists (`AndroidKeystoreName`/`AndroidKeyaliasName` are empty). Create one via **Player Settings → Publishing Settings → Keystore Manager**, then back up the file + both passwords somewhere permanent immediately
-- [ ] **Target Architectures** — currently ARMv7-only (`AndroidTargetArchitectures: 1`); Play Store has required ARM64 since 2019/2021. Add/switch to ARM64. **Player Settings → Other Settings → Configuration**
-- [ ] **Scripting Backend → IL2CPP** — required for ARM64, not confirmed as explicitly set
+- [x] **Package Name** — set to `com.slamdunkinteractive.puzzleparty`
+- [ ] **Keystore** — still none exists (`AndroidKeystoreName`/`AndroidKeyaliasName` are empty). Create one via **Player Settings → Publishing Settings → Keystore Manager**, then back up the file + both passwords somewhere permanent immediately
+- [x] **Target Architectures** — switched to ARMv7+ARM64
+- [ ] **Scripting Backend → IL2CPP** — required for ARM64, still not confirmed as explicitly set
 - [ ] **Build Settings → Android → tick "Build App Bundle (Google Play)"** — Play Console requires `.aab`, not a raw `.apk`
 - [ ] If Play Console rejects the upload over target API level, bump the installed Android SDK Platform (via Android SDK Manager) and rebuild — Google raises the minimum every year, `AndroidTargetSdkVersion` is left on Automatic
 

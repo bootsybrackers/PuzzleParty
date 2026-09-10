@@ -12,7 +12,7 @@ namespace PuzzleParty.Service
 {
     public class BackendSyncService : IBackendSyncService
     {
-        private const string BaseUrl = "https://pp.slamdunkinteractive.com";
+        private static readonly string BaseUrl = EnvironmentConfig.ServerBaseUrl;
         private const float SyncIntervalMinutes = 10f;
 
         private static readonly HttpClient Http = new();
@@ -41,6 +41,7 @@ namespace PuzzleParty.Service
         {
             _userId = PlayerPrefs.GetString("UserId", "");
             bool isNewInstall = string.IsNullOrEmpty(_userId);
+            Debug.Log($"[BackendSync] Environment={EnvironmentConfig.Current}, BaseUrl={BaseUrl}");
             Debug.Log($"[BackendSync] Initializing — deviceId={_deviceId}, savedUserId={(string.IsNullOrEmpty(_userId) ? "<none>" : _userId)}");
             try
             {
