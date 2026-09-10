@@ -12,8 +12,7 @@ namespace PuzzleParty.Service
 {
     public class BackendSyncService : IBackendSyncService
     {
-        // TODO: change to your production URL before release
-        private const string BaseUrl = "http://localhost:5136";
+        private const string BaseUrl = "https://pp.slamdunkinteractive.com";
         private const float SyncIntervalMinutes = 10f;
 
         private static readonly HttpClient Http = new();
