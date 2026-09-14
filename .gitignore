@@ -44,4 +44,7 @@ Client/Assets/Editor/LevelSourceArt/
 # Unity iOS build output
 Client/ios/
 
+# Unity Android build intermediates (CMake/Gradle/NDK cache from building for Android)
+Client/.utmp/
+
 # Docker
