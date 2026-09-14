@@ -41,7 +41,9 @@ What it does:
 - **Test Level** — launches Play mode straight into the selected level, bypassing normal progression (editor-only; has no effect in builds)
 - A maps panel for renaming/resizing maps and keeping them a contiguous chain
 
-Level data lives on disk at `Client/Assets/StreamingAssets/levels/levelX/` (a `levelX.json` config + `levelX.png` image per level); map groupings live in `Client/Assets/StreamingAssets/config/maps.json`. The editor reads/writes these directly, so changes show up immediately — no rebuild needed.
+Level data lives on disk at `Client/Assets/Resources/Levels/levelX/` (a `levelX.json` config + `levelX.png` image per level); map groupings live in `Client/Assets/Resources/Config/maps.json`. The editor reads/writes these directly, so changes show up immediately — no rebuild needed.
+
+These moved out of `StreamingAssets` deliberately: `System.IO.File` can't read `StreamingAssets` content at all on Android (it sits inside the compressed APK), which was silently breaking the game there — every level, for every player, regardless of progress. `Resources.Load` works identically on every platform, so `LevelService`/`MapService`/`EGPService` all read from `Resources/` now. This also sets up the eventual path for levels beyond the bundled set to be downloaded from the server and cached in `Application.persistentDataPath` instead — a separate, not-yet-built piece of work.
 
 ### In-game debug panel
 

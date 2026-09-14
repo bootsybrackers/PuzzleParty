@@ -8,14 +8,14 @@ using UnityEngine;
 namespace PuzzleParty.EditorTools
 {
     /// <summary>
-    /// Editor-only read/write for config/maps.json. Reuses the game's
+    /// Editor-only read/write for Resources/Config/maps.json. Reuses the game's
     /// <see cref="Map"/>/<see cref="MapsConfig"/> types so the editor and the
     /// runtime share one schema. Maps are kept as a gap-free, contiguous chain
     /// of level ranges (map N starts right after map N-1 ends).
     /// </summary>
     public static class MapFileService
     {
-        private static string MapsPath => Path.Combine(Application.streamingAssetsPath, "config", "maps.json");
+        private static string MapsPath => Path.Combine(Application.dataPath, "Resources", "Config", "maps.json");
 
         public static List<Map> LoadMaps()
         {

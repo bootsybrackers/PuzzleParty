@@ -37,8 +37,9 @@ Server/bin/
 Server/obj/
 Server/appsettings.Development.json
 
-# Level staging area
-Client/Assets/StreamingAssets/new-levels/
+# Level staging area (raw source art for the Level Editor's "create from image" step -
+# lives under Assets/Editor so Unity excludes it from builds automatically)
+Client/Assets/Editor/LevelSourceArt/
 
 # Unity iOS build output
 Client/ios/

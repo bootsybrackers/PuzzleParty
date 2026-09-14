@@ -1,4 +1,3 @@
-using System.IO;
 using UnityEngine;
 using PuzzleParty.Progressions;
 
@@ -17,16 +16,18 @@ namespace PuzzleParty.EGP
 
         private void LoadConfig()
         {
-            string path = Path.Combine(Application.streamingAssetsPath, "config/egp.json");
-            if (File.Exists(path))
+            // Resources/Config/egp.json, not StreamingAssets - see LevelService for why
+            // (StreamingAssets isn't readable via System.IO on Android at all - this was
+            // failing silently on every Android build, just quietly never offering EGP).
+            TextAsset configAsset = Resources.Load<TextAsset>("Config/egp");
+            if (configAsset != null)
             {
-                string json = File.ReadAllText(path);
-                config = JsonUtility.FromJson<EGPConfig>(json);
+                config = JsonUtility.FromJson<EGPConfig>(configAsset.text);
                 Debug.Log($"EGP config loaded with {config.rounds.Length} rounds");
             }
             else
             {
-                Debug.LogWarning("EGP config not found at: " + path);
+                Debug.LogWarning("EGP config not found at Resources/Config/egp");
                 config = new EGPConfig { rounds = new EGPRound[0] };
             }
         }

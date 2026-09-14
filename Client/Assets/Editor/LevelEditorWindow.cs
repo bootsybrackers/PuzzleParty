@@ -10,7 +10,7 @@ namespace PuzzleParty.EditorTools
 {
     /// <summary>
     /// Classic level editor for PuzzleParty. Edits the real level files under
-    /// StreamingAssets/levels (ready to commit), reorders levels by swapping,
+    /// Resources/Levels (ready to commit), reorders levels by swapping,
     /// creates new levels from an image, and launches a level straight into
     /// Play mode using the same game code.
     /// </summary>

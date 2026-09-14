@@ -11,13 +11,13 @@ namespace PuzzleParty.EditorTools
     /// Editor-only disk access for level files. Reads and writes the exact
     /// <see cref="LevelConf"/> schema the game uses at runtime, so there is a
     /// single source of truth for the level format. All writes land in the repo
-    /// under StreamingAssets/levels and refresh the AssetDatabase so the changes
-    /// show up in git ready to commit.
+    /// under Resources/Levels and refresh the AssetDatabase so the changes show
+    /// up in git ready to commit.
     /// </summary>
     public static class LevelFileService
     {
-        public static string LevelsRoot => Path.Combine(Application.streamingAssetsPath, "levels");
-        private static string MapsConfigPath => Path.Combine(Application.streamingAssetsPath, "config", "maps.json");
+        public static string LevelsRoot => Path.Combine(Application.dataPath, "Resources", "Levels");
+        private static string MapsConfigPath => Path.Combine(Application.dataPath, "Resources", "Config", "maps.json");
 
         public static string LevelDir(int id) => Path.Combine(LevelsRoot, "level" + id);
         public static string JsonPath(int id) => Path.Combine(LevelDir(id), "level" + id + ".json");

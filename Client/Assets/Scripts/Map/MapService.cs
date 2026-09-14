@@ -1,4 +1,3 @@
-using System.IO;
 using System.Linq;
 using UnityEngine;
 
@@ -7,7 +6,6 @@ namespace PuzzleParty.Maps
     public class MapService : IMapService
     {
         private MapsConfig mapsConfig;
-        private static string ConfigPath => Path.Combine(Application.streamingAssetsPath, "config", "maps.json");
 
         public MapService()
         {
@@ -16,15 +14,17 @@ namespace PuzzleParty.Maps
 
         private void LoadMapsConfig()
         {
-            if (!File.Exists(ConfigPath))
+            // Resources/Config/maps.json, not StreamingAssets - see LevelService for why
+            // (StreamingAssets isn't readable via System.IO on Android at all).
+            TextAsset configAsset = Resources.Load<TextAsset>("Config/maps");
+            if (configAsset == null)
             {
-                Debug.LogError($"Maps config not found at: {ConfigPath}");
+                Debug.LogError("Maps config not found at Resources/Config/maps");
                 mapsConfig = new MapsConfig { maps = new Map[0] };
                 return;
             }
 
-            string json = File.ReadAllText(ConfigPath);
-            mapsConfig = JsonUtility.FromJson<MapsConfig>(json);
+            mapsConfig = JsonUtility.FromJson<MapsConfig>(configAsset.text);
             Debug.Log($"Loaded {mapsConfig.maps.Length} maps from config");
         }
 
