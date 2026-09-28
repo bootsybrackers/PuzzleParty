@@ -3614,8 +3614,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d72541303f00f494cbc6ad8dfabdc5c4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
+  mapBackgroundImage: {fileID: 601838418}
   atlasContainer: {fileID: 822614559}
   leftLevelMarkersContainer: {fileID: 109506143}
   rightLevelMarkersContainer: {fileID: 824081560}

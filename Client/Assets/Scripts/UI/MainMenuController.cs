@@ -208,6 +208,16 @@ namespace PuzzleParty.UI
             if (mainMenuView != null)
             {
                 mainMenuView.SetMapName(currentMap.name);
+
+                Sprite mapBackground = Resources.Load<Sprite>($"Images/Maps/map_{currentMap.id}");
+                if (mapBackground != null)
+                {
+                    mainMenuView.SetMapBackground(mapBackground);
+                }
+                else
+                {
+                    Debug.LogWarning($"No background image found for map {currentMap.id} at Images/Maps/map_{currentMap.id}");
+                }
             }
 
             if (mapProgressText != null)
@@ -248,10 +258,6 @@ namespace PuzzleParty.UI
             Debug.LogWarning("No current map found for atlas setup");
             return;
         }
-
-        // TODO: Load map sprite from resources or StreamingAssets
-        // For now, you'll need to set this manually in the Unity Editor
-        // mainMenuView.SetMapSprite(mapSprite);
 
         // Create level markers for all levels in the current map, split across left and right pages
         int halfPoint = currentMap.TotalLevels / 2;

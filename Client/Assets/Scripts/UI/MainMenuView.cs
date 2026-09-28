@@ -12,6 +12,10 @@ namespace PuzzleParty.UI
     /// </summary>
     public class MainMenuView : MonoBehaviour
     {
+        [Header("Background")]
+        [SerializeField]
+        private Image mapBackgroundImage;
+
         [Header("Atlas Components")]
         [SerializeField]
         private RectTransform atlasContainer;
@@ -200,6 +204,19 @@ namespace PuzzleParty.UI
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Sets the main menu background image for the current map. No-op if there's no
+        /// sprite for this map (e.g. missing artwork) - leaves whatever was showing before
+        /// rather than clearing it out.
+        /// </summary>
+        public void SetMapBackground(Sprite mapSprite)
+        {
+            if (mapBackgroundImage != null && mapSprite != null)
+            {
+                mapBackgroundImage.sprite = mapSprite;
+            }
         }
 
         /// <summary>

@@ -10,7 +10,7 @@ namespace PuzzleParty.Service
     private Canvas canvas;
     private Image fadeImage;
     private CanvasGroup canvasGroup;
-    private bool isTransitioning = false;
+    private Coroutine activeTransition;
 
     void Awake()
     {
@@ -53,22 +53,24 @@ namespace PuzzleParty.Service
 
     public void FadeOut(float duration, System.Action onComplete = null)
     {
-        if (isTransitioning) return;
+        // Interrupt whatever transition is currently running rather than silently dropping
+        // this request - a caller asking to fade out always expects onComplete to eventually
+        // fire (that's usually where the actual scene load happens), and a stale coroutine
+        // left mid-flight from an overlapping fade would otherwise swallow it entirely.
+        if (activeTransition != null) StopCoroutine(activeTransition);
 
-        StartCoroutine(FadeOutCoroutine(duration, onComplete));
+        activeTransition = StartCoroutine(FadeOutCoroutine(duration, onComplete));
     }
 
     public void FadeIn(float duration, System.Action onComplete = null)
     {
-        if (isTransitioning) return;
+        if (activeTransition != null) StopCoroutine(activeTransition);
 
-        StartCoroutine(FadeInCoroutine(duration, onComplete));
+        activeTransition = StartCoroutine(FadeInCoroutine(duration, onComplete));
     }
 
     private IEnumerator FadeOutCoroutine(float duration, System.Action onComplete)
     {
-        isTransitioning = true;
-
         // Block raycasts during transition
         if (canvasGroup != null)
         {
@@ -77,21 +79,21 @@ namespace PuzzleParty.Service
 
         if (fadeImage != null)
         {
+            fadeImage.DOKill();
             fadeImage.DOFade(1f, duration).SetEase(Ease.InOutQuad);
         }
 
         yield return new WaitForSeconds(duration);
 
-        isTransitioning = false;
+        activeTransition = null;
         onComplete?.Invoke();
     }
 
     private IEnumerator FadeInCoroutine(float duration, System.Action onComplete)
     {
-        isTransitioning = true;
-
         if (fadeImage != null)
         {
+            fadeImage.DOKill();
             fadeImage.DOFade(0f, duration).SetEase(Ease.InOutQuad);
         }
 
@@ -103,7 +105,7 @@ namespace PuzzleParty.Service
             canvasGroup.blocksRaycasts = false;
         }
 
-        isTransitioning = false;
+        activeTransition = null;
         onComplete?.Invoke();
     }
     }

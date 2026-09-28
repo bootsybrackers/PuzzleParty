@@ -129,6 +129,20 @@ namespace PuzzleParty.Board
 #else
             currentLevel = levelService.GetNextLevel();
 #endif
+
+            if (currentLevel == null)
+            {
+                // No next level to play (e.g. all levels already beaten). The main menu's
+                // Play button is disabled in this state so this shouldn't normally happen,
+                // but GameScene can still be entered directly (Editor testing, a stale deep
+                // link, etc.) - bail out to the main menu instead of crashing on
+                // currentLevel.Id below and leaving the overlay's raw design-time content
+                // on screen ("Well Done!" / "New Text" placeholders never get overwritten).
+                Debug.LogWarning("[BoardController] No next level available - returning to main menu.");
+                sceneLoader.LoadMainMenu();
+                return;
+            }
+
             Debug.Log($"[BoardController] Loading level {currentLevel.Id}");
             backendSync?.TrackEvent("game_start", new Dictionary<string, string> { { "level", currentLevel.Id.ToString() } });
             boardManager = new BoardManager(currentLevel);
