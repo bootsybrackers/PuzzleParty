@@ -70,7 +70,7 @@ namespace PuzzleParty.Board
             RenderTexture.active = rt;
             Graphics.Blit(source, rt);
 
-            Texture2D newTex = new Texture2D(newWidth, newHeight, source.format, false);
+            Texture2D newTex = new Texture2D(newWidth, newHeight, TextureFormat.RGBA32, false);
             newTex.ReadPixels(new Rect(0, 0, newWidth, newHeight), 0, 0);
             newTex.Apply();
 

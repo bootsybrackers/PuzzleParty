@@ -72,7 +72,7 @@ namespace PuzzleParty.UI
 
             bool hasNextMap = !string.IsNullOrEmpty(nextMapName);
             if (buttonLabel != null)
-                buttonLabel.text = hasNextMap ? $"Next Map\n► {nextMapName}" : "More content\ncoming soon!";
+                buttonLabel.text = hasNextMap ? $"Next Map" : "More content\ncoming soon!";
 
             if (nextMapButton != null)
             {

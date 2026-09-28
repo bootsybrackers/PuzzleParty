@@ -1,9 +1,11 @@
 {
     "id": 33,
+    "rows": 5,
+    "columns": 3,
+    "moves": 50,
+    "holes": 2,
     "name": "Montevideo",
-    "moves": "50",
-    "holes": "2",
-    "columns": "3",
-    "rows": "4",
-    "game_mode": "switch"
+    "game_mode": "slide",
+    "locked_tiles": [],
+    "ice_rows": []
 }

@@ -1,11 +1,16 @@
 {
     "id": 36,
-    "rows": 4,
-    "columns": 3,
-    "moves": 50,
+    "rows": 7,
+    "columns": 4,
+    "moves": 120,
     "holes": 2,
     "name": "Santiago",
-    "game_mode": "switch",
+    "game_mode": "slide",
     "locked_tiles": [],
-    "ice_rows": []
+    "ice_rows": [
+        3,
+        4,
+        5,
+        6
+    ]
 }

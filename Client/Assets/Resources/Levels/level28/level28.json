@@ -1,9 +1,28 @@
 {
     "id": 28,
+    "rows": 7,
+    "columns": 4,
+    "moves": 90,
+    "holes": 2,
     "name": "Cartagena",
-    "moves": "50",
-    "holes": "2",
-    "columns": "3",
-    "rows": "4",
-    "game_mode": "switch"
+    "game_mode": "slide",
+    "locked_tiles": [
+        {
+            "row": 0,
+            "column": 0
+        },
+        {
+            "row": 1,
+            "column": 1
+        },
+        {
+            "row": 2,
+            "column": 2
+        },
+        {
+            "row": 3,
+            "column": 3
+        }
+    ],
+    "ice_rows": []
 }

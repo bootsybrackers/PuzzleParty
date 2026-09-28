@@ -147,17 +147,22 @@ One-time steps for getting the first Android build into Play Console. Server ste
 - [x] Client points at the right server automatically per environment — see **Environments** above; nothing to hand-edit before a build anymore
 
 **Client — Android Player Settings:**
-- [ ] Install the Android Build Support module (+ OpenJDK, Android SDK & NDK Tools) for `6000.4.0f1` via Unity Hub, if not already
+- [x] Android Build Support module (+ OpenJDK, Android SDK & NDK Tools) — installed; a real device build has already been produced (native `arm64-v8a`/`armeabi-v7a` CMake/NDK artifacts observed in `Client/.utmp/`)
 - [x] **Package Name** — set to `com.slamdunkinteractive.puzzleparty`
-- [ ] **Keystore** — still none exists (`AndroidKeystoreName`/`AndroidKeyaliasName` are empty). Create one via **Player Settings → Publishing Settings → Keystore Manager**, then back up the file + both passwords somewhere permanent immediately
+- [x] **Keystore** — created via Player Settings → Publishing Settings → Keystore Manager (`AndroidKeystoreName`/`AndroidKeyaliasName` now set to a dedicated keystore + alias `puzzleparty`, stored outside the repo — confirmed nothing keystore-related is tracked by git). Passwords + file backed up in a password manager
 - [x] **Target Architectures** — switched to ARMv7+ARM64
-- [ ] **Scripting Backend → IL2CPP** — required for ARM64, still not confirmed as explicitly set
-- [ ] **Build Settings → Android → tick "Build App Bundle (Google Play)"** — Play Console requires `.aab`, not a raw `.apk`
+- [x] **Scripting Backend → IL2CPP** — `ProjectSettings.asset` still shows no explicit override (`scriptingBackend: {}`), but the existing build's `.utmp` artifacts (CMake/NDK compiles for both architectures) only happen under IL2CPP — Mono can't target ARM64 at all, so it's active. Worth a 10-second check in **Player Settings → Android → Configuration** that the dropdown explicitly reads "IL2CPP" so it's not silently relying on a default
+- [x] **App Bundle size** — was hitting Google's 200MB base-module cap (244-245MB). Root cause: mipmaps enabled on all 36 level images (pure overhead — the board is flat 2D at a fixed on-screen scale, never minified) plus an unused ~260MB "Layer Lab" UI asset pack cluttering the project (moved to `Assets/Editor/UnusedAssetPacks/` — excluded from builds — with only the 32 files actually referenced kept under `Resources/Images/UI/`). Disabling mipmaps on the level textures brought the real `.aab` down to **71.4MB**
+- [ ] **Build Settings → Android → tick "Build App Bundle (Google Play)"** — Play Console requires `.aab`, not a raw `.apk`; easy to forget on the actual release build if prior test builds were plain `.apk`
 - [ ] If Play Console rejects the upload over target API level, bump the installed Android SDK Platform (via Android SDK Manager) and rebuild — Google raises the minimum every year, `AndroidTargetSdkVersion` is left on Automatic
+- [x] Privacy Policy URL ready to paste into Play Console — `https://www.slamdunkinteractive.com/tos/tos_pp.html`
+- [x] Store listing description drafted (Puzzle Planet, Play Store, ≤4000 chars)
 
 **Google Play Console (outside this repo):**
 - [ ] One-time $25 developer account, create the app
-- [ ] Privacy Policy URL (required — the app syncs progression/events to your server; could be hosted on the `Web/` site)
-- [ ] Data Safety form (declare device ID + gameplay/analytics event collection)
-- [ ] Content rating questionnaire, store listing (title, descriptions, icon, feature graphic, screenshots)
+- [x] Privacy Policy URL — live at `https://www.slamdunkinteractive.com/tos/tos_pp.html`, paste into the app's Store presence settings
+- [ ] Data Safety form (declare device ID + gameplay/analytics event collection — the policy above already states this is sent to our own backend, not a third party, so answer consistently with it)
+- [ ] Content rating questionnaire
+- [ ] Store listing — title/description drafted already, still need icon, feature graphic, and screenshots
+- [ ] Upload the signed `.aab` to the **Internal testing** track first and confirm it installs/runs on a real device before promoting to Production
 - [ ] Upload the first `.aab` to **Internal testing** first, confirm it installs and talks to the live prod server end-to-end, *then* promote to Production — first-time Production submissions go through Google's review queue

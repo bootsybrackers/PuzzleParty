@@ -1,9 +1,11 @@
 {
     "id": 30,
+    "rows": 8,
+    "columns": 4,
+    "moves": 150,
+    "holes": 2,
     "name": "La Paz",
-    "moves": "50",
-    "holes": "2",
-    "columns": "3",
-    "rows": "4",
-    "game_mode": "switch"
+    "game_mode": "slide",
+    "locked_tiles": [],
+    "ice_rows": []
 }

@@ -1,14 +1,30 @@
 {
     "id": 27,
-    "rows": 4,
+    "rows": 5,
     "columns": 3,
-    "moves": 50,
+    "moves": 40,
     "holes": 2,
     "name": "Caracas",
-    "game_mode": "switch",
+    "game_mode": "slide",
     "locked_tiles": [
         {
+            "row": 0,
+            "column": 0
+        },
+        {
+            "row": 0,
+            "column": 1
+        },
+        {
+            "row": 0,
+            "column": 2
+        },
+        {
             "row": 1,
+            "column": 1
+        },
+        {
+            "row": 2,
             "column": 1
         }
     ],

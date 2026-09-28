@@ -1,11 +1,11 @@
 {
     "id": 35,
-    "rows": 4,
+    "rows": 5,
     "columns": 3,
     "moves": 50,
     "holes": 2,
     "name": "São Paulo",
-    "game_mode": "switch",
+    "game_mode": "slide",
     "locked_tiles": [],
     "ice_rows": []
 }

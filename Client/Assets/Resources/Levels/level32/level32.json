@@ -1,9 +1,16 @@
 {
     "id": 32,
+    "rows": 6,
+    "columns": 4,
+    "moves": 90,
+    "holes": 2,
     "name": "Machu Picchu",
-    "moves": "50",
-    "holes": "2",
-    "columns": "3",
-    "rows": "4",
-    "game_mode": "switch"
+    "game_mode": "slide",
+    "locked_tiles": [],
+    "ice_rows": [
+        2,
+        3,
+        4,
+        5
+    ]
 }

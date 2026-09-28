@@ -1,8 +1,11 @@
 {
     "id": 24,
+    "rows": 7,
+    "columns": 4,
+    "moves": 70,
+    "holes": 2,
     "name": "Washington",
-    "moves": "50",
-    "holes": "2",
-    "columns": "3",
-    "rows": "4"
+    "game_mode": "slide",
+    "locked_tiles": [],
+    "ice_rows": []
 }

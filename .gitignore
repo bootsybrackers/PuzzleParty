@@ -25,6 +25,10 @@ sysinfo.txt
 *.unitypackage
 crashlytics-build.properties
 
+# Signing keystores - never commit; store in a password manager, outside the repo
+*.keystore
+*.jks
+
 # Visual Studio / Rider
 .vscode/
 .idea/
